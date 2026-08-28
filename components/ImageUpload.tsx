@@ -5,7 +5,7 @@ import { ProductImage } from "@/types";
 import { uploadImage, ApiError } from "@/lib/api";
 
 const MAX_FILES = 3;
-const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
+const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ImageUploadProps {
   value: ProductImage[];
@@ -14,18 +14,17 @@ interface ImageUploadProps {
 }
 
 interface UploadSlot {
-  localUrl: string;   // object URL or base64 for preview
-  remoteUrl?: string; // populated after upload or base64 fallback
+  localUrl: string;   // object URL for local thumbnail preview
+  remoteUrl?: string; // short URL from server
   uploading: boolean;
   uploadError?: string;
   file: File;
 }
 
-/** Derive the committed ProductImage[] from current slots */
 function toProductImages(slots: UploadSlot[]): ProductImage[] {
   return slots
-    .filter((s) => s.remoteUrl || s.localUrl)
-    .map((s) => ({ url: s.remoteUrl || s.localUrl }));
+    .filter((s) => s.remoteUrl)
+    .map((s) => ({ url: s.remoteUrl! }));
 }
 
 export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
@@ -44,22 +43,13 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
     onChange(toProductImages(next));
   };
 
-  const readFileAsDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     const incoming = Array.from(files).slice(0, MAX_FILES - slots.length);
 
     for (const file of incoming) {
       if (file.size > MAX_SIZE_BYTES) {
-        alert(`"${file.name}" exceeds the 4 MB limit.`);
+        alert(`"${file.name}" exceeds the 10 MB limit.`);
         continue;
       }
       if (!file.type.startsWith("image/")) {
@@ -67,36 +57,38 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         continue;
       }
 
-      let dataUrl = "";
-      try {
-        dataUrl = await readFileAsDataUrl(file);
-      } catch {
-        dataUrl = URL.createObjectURL(file);
-      }
+      const localUrl = URL.createObjectURL(file);
 
-      // Add slot in uploading state with base64 preview
-      const newSlots = [...slots, { localUrl: dataUrl, remoteUrl: dataUrl, uploading: true, file }];
-      setSlots(newSlots);
-      onChange(toProductImages(newSlots));
+      // Add slot in uploading state
+      const newSlot: UploadSlot = {
+        localUrl,
+        uploading: true,
+        file,
+      };
+
+      setSlots((prev) => [...prev, newSlot]);
 
       try {
-        const remoteUrl = await uploadImage(file);
+        const shortUrl = await uploadImage(file);
         setSlots((prev) => {
           const next = prev.map((s) =>
-            s.file === file ? { ...s, uploading: false, remoteUrl: remoteUrl || dataUrl } : s
+            s.file === file
+              ? { ...s, uploading: false, remoteUrl: shortUrl }
+              : s
           );
           Promise.resolve().then(() => onChange(toProductImages(next)));
           return next;
         });
-      } catch (err) {
-        // Fallback: retain base64 dataUrl so image is never lost in JSON or PDF
-        setSlots((prev) => {
-          const next = prev.map((s) =>
-            s.file === file ? { ...s, uploading: false, remoteUrl: dataUrl } : s
-          );
-          Promise.resolve().then(() => onChange(toProductImages(next)));
-          return next;
-        });
+      } catch (err: any) {
+        console.error("Image upload failed:", err);
+        const msg = err instanceof ApiError ? err.message : "Upload failed.";
+        setSlots((prev) =>
+          prev.map((s) =>
+            s.file === file
+              ? { ...s, uploading: false, uploadError: msg }
+              : s
+          )
+        );
       }
     }
   };
@@ -117,7 +109,7 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         Upload Image
       </p>
       <p className="text-xs text-gray-500 mb-3">
-        Add up to 3 photos. Max file size 4 MB.
+        Add up to 3 photos.
       </p>
 
       {/* Take photo / Select Image button */}
@@ -186,6 +178,15 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
                       d="M4 12a8 8 0 018-8v8H4z"
                     />
                   </svg>
+                </div>
+              )}
+
+              {/* Upload error */}
+              {slot.uploadError && (
+                <div className="absolute inset-0 bg-red-500/80 flex flex-col items-center justify-center gap-1 p-1">
+                  <span className="text-white text-[9px] text-center leading-tight">
+                    {slot.uploadError}
+                  </span>
                 </div>
               )}
 

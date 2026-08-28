@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
       customer = body.customer || customer;
       items = body.items || items;
     } else {
-      // Handle x-www-form-urlencoded or multipart form data from hidden form submit
       const formData = await req.formData();
       const payloadStr = formData.get("payload") as string;
       if (payloadStr) {
@@ -28,7 +27,7 @@ export async function POST(req: NextRequest) {
           customer = parsed.customer || customer;
           items = parsed.items || items;
         } catch (e) {
-          console.warn("[PDF POST Form] Could not parse JSON payload:", e);
+          console.warn("[PDF POST Form] Parse error:", e);
         }
       }
     }
@@ -54,8 +53,34 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    message: "PDF endpoint active. Use POST form submission to generate PDF.",
-  });
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const phone = searchParams.get("phone") || "";
+    const name = searchParams.get("name") || "";
+
+    // Always generate and stream a valid PDF file — never return JSON
+    const doc = generateIceFashionsPdf({
+      customer: {
+        customerPhone: phone,
+        customerName: name,
+        dispatchDate: new Date().toISOString().split("T")[0],
+      },
+      items: [],
+    });
+
+    const arrayBuffer = doc.output("arraybuffer");
+    const fileName = `ICE_FASHIONS_ORDER_${(name || "FORM").replace(/\s+/g, "_")}.pdf`;
+
+    return new NextResponse(arrayBuffer, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

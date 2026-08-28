@@ -14,7 +14,7 @@ export default function ConfirmationContent() {
 
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
-  const [doneClicked, setDoneClicked] = useState(false);
+  const [isDone, setIsDone] = useState(false);
 
   // Clear the cart on mount — order is submitted
   useEffect(() => {
@@ -36,108 +36,106 @@ export default function ConfirmationContent() {
   };
 
   const handleDone = () => {
-    setDoneClicked(true);
+    setIsDone(true);
 
-    // 1. Try closing the in-app browser window
+    // 1. Try closing window
     try {
+      window.open("", "_self", "");
       window.close();
     } catch {}
 
-    // 2. Try unwinding history back to WhatsApp
+    // 2. Open WhatsApp directly
     try {
-      if (window.history.length > 1) {
-        window.history.go(-(window.history.length - 1));
-      }
+      window.location.href = "whatsapp://";
     } catch {}
-
-    // 3. Attempt WhatsApp deep link
-    setTimeout(() => {
-      try {
-        window.location.href = "whatsapp://";
-      } catch {}
-    }, 100);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 py-12 text-center">
-      {/* Success icon */}
-      <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6 shadow-sm">
-        <svg
-          className="w-10 h-10 text-emerald-600"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
-
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Submitted!</h1>
-      <p className="text-sm text-gray-500 mb-6 leading-relaxed max-w-xs">
-        Your order has been received. Our team will begin production and keep you updated.
-      </p>
-
-      {/* Order ID */}
-      {orderId && (
-        <div className="bg-white border border-gray-100 rounded-2xl px-6 py-4 mb-5 shadow-sm w-full max-w-xs">
-          <p className="text-xs text-gray-400 font-medium mb-1">Order ID</p>
-          <p className="text-lg font-bold text-gray-900 tracking-wide">{orderId}</p>
-          <p className="text-xs text-gray-400 mt-1">Keep this for your records</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-5 py-10 text-center">
+      {/* Main card */}
+      <div className="w-full max-w-sm bg-white rounded-3xl border border-gray-100 shadow-md p-6 flex flex-col items-center">
+        {/* Success Icon */}
+        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4 shadow-xs">
+          <svg
+            className="w-8 h-8 text-emerald-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
         </div>
-      )}
 
-      {/* Invoice download if available */}
-      {invoiceToken && (
+        <h1 className="text-2xl font-black text-gray-900 mb-1.5">Order Submitted!</h1>
+        <p className="text-xs text-gray-500 mb-5 leading-relaxed max-w-xs">
+          Your order has been recorded successfully.
+        </p>
+
+        {/* Order ID */}
+        {orderId && (
+          <div className="bg-gray-50 border border-gray-200/70 rounded-2xl px-5 py-3 mb-5 w-full">
+            <p className="text-[11px] text-gray-400 font-semibold mb-0.5 uppercase tracking-wide">
+              Order ID
+            </p>
+            <p className="text-base font-bold text-gray-900 tracking-wider font-mono">
+              {orderId}
+            </p>
+          </div>
+        )}
+
+        {/* Invoice download if available */}
+        {invoiceToken && (
+          <button
+            onClick={handleDownloadInvoice}
+            disabled={invoiceLoading}
+            className="w-full py-3 bg-white border border-emerald-600 text-emerald-700 rounded-2xl font-bold text-xs shadow-xs active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2 mb-3 cursor-pointer"
+          >
+            {invoiceLoading ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <span>Downloading…</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Download Invoice</span>
+              </>
+            )}
+          </button>
+        )}
+
+        {invoiceError && (
+          <p className="mb-3 text-xs text-red-500 font-medium">{invoiceError}</p>
+        )}
+
+        {/* Done / Close Button */}
         <button
-          onClick={handleDownloadInvoice}
-          disabled={invoiceLoading}
-          className="w-full max-w-xs py-3.5 bg-white border border-emerald-600 text-emerald-700 rounded-2xl font-semibold text-sm shadow-xs active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2 mb-3 cursor-pointer"
+          type="button"
+          onClick={handleDone}
+          className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-2xl font-black text-sm shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
-          {invoiceLoading ? (
-            <>
-              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              <span>Downloading…</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span>Download Invoice</span>
-            </>
-          )}
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Done</span>
         </button>
-      )}
 
-      {invoiceError && (
-        <p className="mb-3 text-xs text-red-500 font-medium">{invoiceError}</p>
-      )}
-
-      {/* Prominent Done Button */}
-      <button
-        type="button"
-        onClick={handleDone}
-        className="w-full max-w-xs py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-full font-bold text-base shadow-lg shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-        <span>Done</span>
-      </button>
-
-      {doneClicked && (
-        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-medium max-w-xs animate-fade-in">
-          ✓ Order saved! You can also tap the <b>✕</b> at the top left to return to your WhatsApp chat.
-        </div>
-      )}
-
-      <p className="mt-5 text-xs text-gray-400">
-        You can close this page. A copy has been sent to your number.
-      </p>
+        {isDone ? (
+          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 font-medium w-full animate-fade-in">
+            ✓ Order recorded! Tap the <b>✕</b> at top left to return to your chat.
+          </div>
+        ) : (
+          <p className="mt-4 text-[11px] text-gray-400 font-medium">
+            Tap <b>Done</b> or the <b>✕</b> at top left to return to WhatsApp.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
