@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateIceFashionsPdf } from "@/lib/generateIceFashionsPdf";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const dataParam = searchParams.get("data");
-
     let customer: any = {
       customerPhone: "",
       customerName: "",
@@ -15,14 +12,24 @@ export async function GET(req: NextRequest) {
     };
     let items: any[] = [];
 
-    if (dataParam) {
-      try {
-        const decodedStr = Buffer.from(dataParam, "base64").toString("utf-8");
-        const parsed = JSON.parse(decodeURIComponent(decodedStr));
-        customer = parsed.customer || customer;
-        items = parsed.items || items;
-      } catch (e) {
-        console.warn("[PDF GET] Could not parse base64 data parameter:", e);
+    const contentType = req.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      customer = body.customer || customer;
+      items = body.items || items;
+    } else {
+      // Handle x-www-form-urlencoded or multipart form data from hidden form submit
+      const formData = await req.formData();
+      const payloadStr = formData.get("payload") as string;
+      if (payloadStr) {
+        try {
+          const parsed = JSON.parse(payloadStr);
+          customer = parsed.customer || customer;
+          items = parsed.items || items;
+        } catch (e) {
+          console.warn("[PDF POST Form] Could not parse JSON payload:", e);
+        }
       }
     }
 
@@ -39,7 +46,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err: any) {
-    console.error("[PDF] Server GET generation error:", err);
+    console.error("[PDF] Server POST generation error:", err);
     return NextResponse.json(
       { error: err.message || "Failed to generate PDF on server" },
       { status: 500 }
@@ -47,33 +54,8 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const doc = generateIceFashionsPdf({
-      customer: body.customer || {
-        customerPhone: "",
-        dispatchDate: new Date().toISOString().split("T")[0],
-      },
-      items: body.items || [],
-    });
-
-    const arrayBuffer = doc.output("arraybuffer");
-    const fileName = `ICE_FASHIONS_ORDER_${(body.customer?.customerName || "FORM").replace(/\s+/g, "_")}.pdf`;
-
-    return new NextResponse(arrayBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-      },
-    });
-  } catch (err: any) {
-    console.error("[PDF] Server POST generation error:", err);
-    return NextResponse.json(
-      { error: err.message || "Failed to generate PDF on server" },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+  return NextResponse.json({
+    message: "PDF endpoint active. Use POST form submission to generate PDF.",
+  });
 }

@@ -14,6 +14,7 @@ export default function ConfirmationContent() {
 
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [doneClicked, setDoneClicked] = useState(false);
 
   // Clear the cart on mount — order is submitted
   useEffect(() => {
@@ -35,22 +36,26 @@ export default function ConfirmationContent() {
   };
 
   const handleDone = () => {
-    // 1. Attempt to close the in-app browser window
+    setDoneClicked(true);
+
+    // 1. Try closing the in-app browser window
     try {
       window.close();
-    } catch {
-      // ignore
-    }
+    } catch {}
 
-    // 2. If window.close() is prevented by browser sandbox, return to WhatsApp or history
-    setTimeout(() => {
-      if (document.referrer && document.referrer.includes("whatsapp")) {
-        window.location.href = document.referrer;
-      } else {
-        // WhatsApp deep link to bring user back to their chat
-        window.location.href = "whatsapp://";
+    // 2. Try unwinding history back to WhatsApp
+    try {
+      if (window.history.length > 1) {
+        window.history.go(-(window.history.length - 1));
       }
-    }, 120);
+    } catch {}
+
+    // 3. Attempt WhatsApp deep link
+    setTimeout(() => {
+      try {
+        window.location.href = "whatsapp://";
+      } catch {}
+    }, 100);
   };
 
   return (
@@ -69,13 +74,13 @@ export default function ConfirmationContent() {
       </div>
 
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Submitted!</h1>
-      <p className="text-sm text-gray-500 mb-8 leading-relaxed max-w-xs">
+      <p className="text-sm text-gray-500 mb-6 leading-relaxed max-w-xs">
         Your order has been received. Our team will begin production and keep you updated.
       </p>
 
       {/* Order ID */}
       {orderId && (
-        <div className="bg-white border border-gray-100 rounded-2xl px-6 py-4 mb-6 shadow-sm w-full max-w-xs">
+        <div className="bg-white border border-gray-100 rounded-2xl px-6 py-4 mb-5 shadow-sm w-full max-w-xs">
           <p className="text-xs text-gray-400 font-medium mb-1">Order ID</p>
           <p className="text-lg font-bold text-gray-900 tracking-wide">{orderId}</p>
           <p className="text-xs text-gray-400 mt-1">Keep this for your records</p>
@@ -112,7 +117,7 @@ export default function ConfirmationContent() {
         <p className="mb-3 text-xs text-red-500 font-medium">{invoiceError}</p>
       )}
 
-      {/* Prominent Done / Close App Button */}
+      {/* Prominent Done Button */}
       <button
         type="button"
         onClick={handleDone}
@@ -124,7 +129,13 @@ export default function ConfirmationContent() {
         <span>Done</span>
       </button>
 
-      <p className="mt-6 text-xs text-gray-400">
+      {doneClicked && (
+        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-medium max-w-xs animate-fade-in">
+          ✓ Order saved! You can also tap the <b>✕</b> at the top left to return to your WhatsApp chat.
+        </div>
+      )}
+
+      <p className="mt-5 text-xs text-gray-400">
         You can close this page. A copy has been sent to your number.
       </p>
     </div>

@@ -9,6 +9,8 @@ import { ErrorState } from "@/components/ErrorState";
 import { productSchemas } from "@/config/product-schemas";
 import { IceFashionsOrderForm } from "@/components/IceFashionsOrderForm";
 
+import { downloadIceFashionsPdf } from "@/lib/downloadPdf";
+
 export default function ReviewPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -29,8 +31,8 @@ export default function ReviewPage() {
     setMounted(true);
   }, []);
 
-  const handleDirectDownloadPdf = () => {
-    const payload = {
+  const handleDirectDownloadPdf = async () => {
+    await downloadIceFashionsPdf({
       customer: {
         customerPhone,
         customerName,
@@ -39,11 +41,7 @@ export default function ReviewPage() {
         remarks,
       },
       items,
-    };
-    const jsonStr = encodeURIComponent(JSON.stringify(payload));
-    const base64Data = btoa(jsonStr);
-    const downloadUrl = `/api/generate-pdf?data=${base64Data}`;
-    window.location.href = downloadUrl;
+    });
   };
 
   const handleSubmit = async () => {

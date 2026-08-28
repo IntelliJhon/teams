@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useOrderStore } from "@/store/order-store";
 import { generateIceFashionsPdf } from "@/lib/generateIceFashionsPdf";
+import { downloadIceFashionsPdf } from "@/lib/downloadPdf";
 import { toast } from "sonner";
 
 interface IceFashionsOrderFormProps {
@@ -113,27 +114,10 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
     { label: "Hand Cuff", val: primaryFields.handCuff || "—" },
   ];
 
-  // Helper to build real HTTP download URL for WhatsApp and external browser compatibility
-  const getHttpDownloadUrl = () => {
-    const payload = {
-      customer: {
-        customerPhone,
-        customerName,
-        customerAddress,
-        dispatchDate,
-        remarks,
-      },
-      items,
-    };
-    const jsonStr = encodeURIComponent(JSON.stringify(payload));
-    const base64Data = btoa(jsonStr);
-    return `/api/generate-pdf?data=${base64Data}`;
-  };
-
   const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
-      const doc = generateIceFashionsPdf({
+      await downloadIceFashionsPdf({
         customer: {
           customerPhone,
           customerName,
@@ -143,50 +127,9 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
         },
         items,
       });
-
-      const fileName = `ICE_FASHIONS_ORDER_${(customerName || "FORM").replace(/\s+/g, "_")}.pdf`;
-      const blob = doc.output("blob");
-
-      // 1. Try Native Web Share API first (Best for WhatsApp / Instagram on iOS & Android)
-      if (typeof navigator !== "undefined" && navigator.canShare) {
-        try {
-          const file = new File([blob], fileName, { type: "application/pdf" });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: "ICE FASHIONS Order Form",
-              text: `ICE FASHIONS Order Form for ${customerName || "Customer"}`,
-              files: [file],
-            });
-            toast.success("Order form shared / saved successfully!");
-            return;
-          }
-        } catch (shareErr: any) {
-          if (shareErr?.name === "AbortError") {
-            return;
-          }
-          console.warn("Share API fallback:", shareErr);
-        }
-      }
-
-      // 2. Real HTTP Server URL Download (Works seamlessly in WhatsApp & Chrome)
-      const downloadUrl = getHttpDownloadUrl();
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        try {
-          document.body.removeChild(link);
-        } catch {}
-      }, 2000);
-
-      toast.success("A4 Order Form PDF download started!");
     } catch (err) {
       console.error("PDF download error:", err);
-      // Fallback: direct window location to real HTTP server URL
-      const downloadUrl = getHttpDownloadUrl();
-      window.location.href = downloadUrl;
+      toast.error("Could not download file. Please try again.");
     } finally {
       setDownloading(false);
     }
