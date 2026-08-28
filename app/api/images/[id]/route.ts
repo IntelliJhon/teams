@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: "Image not found" }, { status: 404 });
     }
 
-    return new NextResponse(imgData.buffer, {
+    return new NextResponse(new Uint8Array(imgData.buffer), {
       status: 200,
       headers: {
         "Content-Type": imgData.mimeType,
