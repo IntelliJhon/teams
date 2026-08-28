@@ -113,7 +113,7 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
     { label: "Hand Cuff", val: primaryFields.handCuff || "—" },
   ];
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
       const doc = generateIceFashionsPdf({
@@ -128,16 +128,36 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
       });
 
       const fileName = `ICE_FASHIONS_ORDER_${(customerName || "FORM").replace(/\s+/g, "_")}.pdf`;
-
-      // Universal mobile & desktop download method via Blob URL
       const blob = doc.output("blob");
-      const blobUrl = URL.createObjectURL(blob);
 
+      // 1. Web Share API (Primary for WhatsApp / Instagram / Mobile in-app browsers)
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({
+            title: "ICE FASHIONS Order Form",
+            text: `ICE FASHIONS Order Form for ${customerName || "Customer"}`,
+            files: [file],
+          });
+          toast.success("Order Form PDF saved / shared!");
+          return;
+        } catch (shareErr: any) {
+          if (shareErr?.name === "AbortError") {
+            return; // User canceled share sheet
+          }
+          console.warn("Native share fallback to download:", shareErr);
+        }
+      }
+
+      // 2. Direct Blob link trigger (NO target="_blank" so WhatsApp/mobile won't show external app warnings)
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
       link.download = fileName;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
 
@@ -150,7 +170,7 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
         }
       }, 3000);
 
-      toast.success("A4 Order Form PDF downloaded successfully!");
+      toast.success("A4 Order Form PDF downloaded!");
     } catch (err) {
       console.error("PDF download error:", err);
       toast.error("Could not download file. Please try the Print option.");
@@ -189,7 +209,7 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span>{downloading ? "Saving…" : "Download PDF"}</span>
+            <span>{downloading ? "Saving…" : "Download / Save PDF"}</span>
           </button>
 
           <button
