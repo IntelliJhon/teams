@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Background circle/rounded card -->
+  <rect width="120" height="120" rx="24" fill="#F0FDF4"/>
+  <!-- T-shirt Body -->
+  <path d="M40 32 L30 46 L42 54 L44 45 L44 88 C44 91 46 93 49 93 L71 93 C74 93 76 91 76 88 L76 45 L78 54 L90 46 L80 32 C73 34 67 36 60 36 C53 36 47 34 40 32 Z" fill="#059669" stroke="#047857" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Sleeves & Hem Details -->
+  <path d="M30 46 L42 54" stroke="#047857" stroke-width="2"/>
+  <path d="M90 46 L78 54" stroke="#047857" stroke-width="2"/>
+  <path d="M44 86 L76 86" stroke="#047857" stroke-width="1.5" stroke-dasharray="2 2"/>
+  <!-- Crew Neck Collar -->
+  <path d="M48 33 C48 40 72 40 72 33" stroke="#D1FAE5" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 33 C50 38 70 38 70 33" stroke="#065F46" stroke-width="2" stroke-linecap="round"/>
+  <!-- Inner label hint -->
+  <rect x="56" y="38" width="8" height="5" rx="1" fill="#A7F3D0"/>
+</svg>

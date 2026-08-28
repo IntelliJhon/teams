@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#F5F3FF"/>
+  <!-- Waistband -->
+  <rect x="42" y="32" width="36" height="7" rx="2" fill="#4C1D95" stroke="#3B0764" stroke-width="2"/>
+  <!-- Skirt Body with Pleats -->
+  <path d="M42 39 L28 88 C49 93 71 93 92 88 L78 39 Z" fill="#6D28D9" stroke="#4C1D95" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Pleat Lines -->
+  <path d="M46 39 L38 89" stroke="#4C1D95" stroke-width="2"/>
+  <path d="M53 39 L48 90" stroke="#4C1D95" stroke-width="2"/>
+  <path d="M60 39 L60 91" stroke="#4C1D95" stroke-width="2"/>
+  <path d="M67 39 L72 90" stroke="#4C1D95" stroke-width="2"/>
+  <path d="M74 39 L82 89" stroke="#4C1D95" stroke-width="2"/>
+  <!-- Bottom Hem Details -->
+  <path d="M28 88 C49 93 71 93 92 88" stroke="#A78BFA" stroke-width="2.5" fill="none"/>
+</svg>

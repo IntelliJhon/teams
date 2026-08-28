@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#F8FAFC"/>
+  <!-- Trousers Body -->
+  <path d="M40 24 L80 24 L84 94 L70 94 L60 48 L50 94 L36 94 Z" fill="#475569" stroke="#334155" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Waistband & Belt loops -->
+  <rect x="39" y="20" width="42" height="7" rx="2" fill="#334155" stroke="#1E293B" stroke-width="1.5"/>
+  <line x1="46" y1="20" x2="46" y2="27" stroke="#94A3B8" stroke-width="1.5"/>
+  <line x1="60" y1="20" x2="60" y2="27" stroke="#94A3B8" stroke-width="1.5"/>
+  <line x1="74" y1="20" x2="74" y2="27" stroke="#94A3B8" stroke-width="1.5"/>
+  <!-- Ironed Center Creases -->
+  <line x1="43" y1="36" x2="43" y2="90" stroke="#334155" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <line x1="77" y1="36" x2="77" y2="90" stroke="#334155" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <!-- Side slant pockets -->
+  <line x1="42" y1="28" x2="47" y2="40" stroke="#1E293B" stroke-width="2"/>
+  <line x1="78" y1="28" x2="73" y2="40" stroke="#1E293B" stroke-width="2"/>
+</svg>

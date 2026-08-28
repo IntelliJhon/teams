@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#F8FAFC"/>
+  <!-- Shorts Body -->
+  <path d="M38 38 L82 38 L86 82 L65 82 L60 55 L55 82 L34 82 Z" fill="#334155" stroke="#1E293B" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Waistband -->
+  <rect x="37" y="34" width="46" height="8" rx="3" fill="#1E293B" stroke="#0F172A" stroke-width="2"/>
+  <!-- Drawstrings -->
+  <path d="M58 42 L56 50" stroke="#F1F5F9" stroke-width="2" stroke-linecap="round"/>
+  <path d="M62 42 L64 50" stroke="#F1F5F9" stroke-width="2" stroke-linecap="round"/>
+  <!-- Side stripe -->
+  <path d="M38 46 L36 78" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M82 46 L84 78" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Leg openings line -->
+  <path d="M34 80 L55 80" stroke="#475569" stroke-width="1.5"/>
+  <path d="M65 80 L86 80" stroke="#475569" stroke-width="1.5"/>
+</svg>

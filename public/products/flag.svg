@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#F0FDFA"/>
+  <!-- Flag Pole -->
+  <line x1="32" y1="20" x2="32" y2="100" stroke="#64748B" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="18" r="4" fill="#F59E0B"/>
+  <rect x="28" y="98" width="8" height="4" rx="2" fill="#475569"/>
+  <!-- Waving Team Flag Body -->
+  <path d="M34 26 C52 20 64 34 94 24 L94 68 C64 78 52 64 34 70 Z" fill="#0D9488" stroke="#0F766E" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Diagonal stripe on flag -->
+  <path d="M34 40 C52 34 64 48 94 38 L94 52 C64 62 52 48 34 54 Z" fill="#FDE047"/>
+  <!-- Emblem star on flag -->
+  <polygon points="56,42 58,47 63,47 59,50 61,55 56,52 52,55 54,50 50,47 55,47" fill="#FFFFFF"/>
+</svg>

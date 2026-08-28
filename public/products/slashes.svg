@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#FFF1F2"/>
+  <!-- Diagonal Ceremonial Sash Body -->
+  <path d="M30 20 L48 20 L94 92 L76 92 Z" fill="#E11D48" stroke="#BE123C" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Gold Borders -->
+  <path d="M30 20 L76 92" stroke="#FDE047" stroke-width="2"/>
+  <path d="M48 20 L94 92" stroke="#FDE047" stroke-width="2"/>
+  <!-- Rosette / Badge on sash -->
+  <circle cx="78" cy="80" r="10" fill="#BE123C" stroke="#FDE047" stroke-width="2"/>
+  <circle cx="78" cy="80" r="6" fill="#FDE047"/>
+  <!-- Gold Fringe at bottom -->
+  <path d="M76 92 L76 100 M80 92 L80 100 M84 92 L84 100 M88 92 L88 100 M92 92 L92 100" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+</svg>

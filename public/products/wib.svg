@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#FEFCE8"/>
+  <!-- Training Bib Vest Body -->
+  <path d="M42 28 L30 42 L40 50 L40 92 L80 92 L80 50 L90 42 L78 28 C70 32 50 32 42 28 Z" fill="#EAB308" stroke="#CA8A04" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Deep Arm Holes -->
+  <path d="M30 42 C42 48 42 66 40 76" stroke="#A16207" stroke-width="2" fill="none"/>
+  <path d="M90 42 C78 48 78 66 80 76" stroke="#A16207" stroke-width="2" fill="none"/>
+  <!-- Mesh dot texture -->
+  <circle cx="50" cy="56" r="1.5" fill="#CA8A04"/>
+  <circle cx="60" cy="56" r="1.5" fill="#CA8A04"/>
+  <circle cx="70" cy="56" r="1.5" fill="#CA8A04"/>
+  <circle cx="55" cy="66" r="1.5" fill="#CA8A04"/>
+  <circle cx="65" cy="66" r="1.5" fill="#CA8A04"/>
+  <circle cx="50" cy="76" r="1.5" fill="#CA8A04"/>
+  <circle cx="60" cy="76" r="1.5" fill="#CA8A04"/>
+  <circle cx="70" cy="76" r="1.5" fill="#CA8A04"/>
+  <!-- Round wide Neckline -->
+  <path d="M48 29 C48 44 72 44 72 29" stroke="#FEF08A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M48 29 C48 44 72 44 72 29" stroke="#A16207" stroke-width="2" stroke-linecap="round"/>
+</svg>

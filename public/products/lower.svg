@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#F1F5F9"/>
+  <!-- Track Pants Body -->
+  <path d="M40 24 L80 24 L82 92 L70 92 L60 52 L50 92 L38 92 Z" fill="#1E293B" stroke="#0F172A" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Waistband -->
+  <rect x="39" y="20" width="42" height="7" rx="3" fill="#0F172A" stroke="#020617" stroke-width="1.5"/>
+  <!-- Drawstring -->
+  <circle cx="60" cy="27" r="1.5" fill="#E2E8F0"/>
+  <path d="M58 27 L55 35 M62 27 L65 35" stroke="#E2E8F0" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Side sporty contrast stripes -->
+  <path d="M42 30 L40 88" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+  <path d="M78 30 L80 88" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+  <!-- Bottom elastic cuffs -->
+  <rect x="37" y="90" width="14" height="4" rx="2" fill="#0F172A"/>
+  <rect x="69" y="90" width="14" height="4" rx="2" fill="#0F172A"/>
+</svg>

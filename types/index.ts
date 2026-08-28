@@ -4,9 +4,15 @@
 
 export type OrderStatus = "Submitted" | "In Production" | "Locked";
 
+export interface PlayerDetail {
+  number?: string;
+  name?: string;
+}
+
 export interface SizeQuantity {
   size: string;
   quantity: number;
+  players?: PlayerDetail[];
 }
 
 export interface ProductImage {
@@ -24,8 +30,17 @@ export interface ProductLineItem {
 export interface OrderHeader {
   customerPhone: string;
   customerName?: string;
+  customerAddress?: string;
   dispatchDate: string; // ISO date string
   remarks?: string;
+}
+
+export interface ProductCatalogItem {
+  name: string;
+  description: string;
+  meta: string;
+  imageUrl?: string;
+  icon?: string;
 }
 
 export interface Order extends OrderHeader {

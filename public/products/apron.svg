@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="24" fill="#FFF7ED"/>
+  <!-- Neck Strap -->
+  <path d="M48 36 C48 18 72 18 72 36" stroke="#EA580C" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- Apron Body -->
+  <path d="M48 36 L72 36 L72 48 L84 56 L84 94 L36 94 L36 56 L48 48 Z" fill="#F97316" stroke="#EA580C" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Waist Ties -->
+  <path d="M36 56 L24 60 M84 56 L96 60" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Front Big Pocket -->
+  <rect x="46" y="66" width="28" height="20" rx="3" fill="#FB923C" stroke="#C2410C" stroke-width="2"/>
+  <line x1="60" y1="66" x2="60" y2="86" stroke="#C2410C" stroke-width="1.5" stroke-dasharray="2 2"/>
+</svg>
