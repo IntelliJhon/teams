@@ -113,6 +113,23 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
     { label: "Hand Cuff", val: primaryFields.handCuff || "—" },
   ];
 
+  // Helper to build real HTTP download URL for WhatsApp and external browser compatibility
+  const getHttpDownloadUrl = () => {
+    const payload = {
+      customer: {
+        customerPhone,
+        customerName,
+        customerAddress,
+        dispatchDate,
+        remarks,
+      },
+      items,
+    };
+    const jsonStr = encodeURIComponent(JSON.stringify(payload));
+    const base64Data = btoa(jsonStr);
+    return `/api/generate-pdf?data=${base64Data}`;
+  };
+
   const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
@@ -130,50 +147,46 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
       const fileName = `ICE_FASHIONS_ORDER_${(customerName || "FORM").replace(/\s+/g, "_")}.pdf`;
       const blob = doc.output("blob");
 
-      // 1. Web Share API (Primary for WhatsApp / Instagram / Mobile in-app browsers)
-      const file = new File([blob], fileName, { type: "application/pdf" });
-      if (
-        typeof navigator !== "undefined" &&
-        navigator.canShare &&
-        navigator.canShare({ files: [file] })
-      ) {
+      // 1. Try Native Web Share API first (Best for WhatsApp / Instagram on iOS & Android)
+      if (typeof navigator !== "undefined" && navigator.canShare) {
         try {
-          await navigator.share({
-            title: "ICE FASHIONS Order Form",
-            text: `ICE FASHIONS Order Form for ${customerName || "Customer"}`,
-            files: [file],
-          });
-          toast.success("Order Form PDF saved / shared!");
-          return;
+          const file = new File([blob], fileName, { type: "application/pdf" });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: "ICE FASHIONS Order Form",
+              text: `ICE FASHIONS Order Form for ${customerName || "Customer"}`,
+              files: [file],
+            });
+            toast.success("Order form shared / saved successfully!");
+            return;
+          }
         } catch (shareErr: any) {
           if (shareErr?.name === "AbortError") {
-            return; // User canceled share sheet
+            return;
           }
-          console.warn("Native share fallback to download:", shareErr);
+          console.warn("Share API fallback:", shareErr);
         }
       }
 
-      // 2. Direct Blob link trigger (NO target="_blank" so WhatsApp/mobile won't show external app warnings)
-      const blobUrl = URL.createObjectURL(blob);
+      // 2. Real HTTP Server URL Download (Works seamlessly in WhatsApp & Chrome)
+      const downloadUrl = getHttpDownloadUrl();
       const link = document.createElement("a");
-      link.href = blobUrl;
+      link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
-
       setTimeout(() => {
         try {
           document.body.removeChild(link);
-          URL.revokeObjectURL(blobUrl);
-        } catch {
-          // ignore
-        }
-      }, 3000);
+        } catch {}
+      }, 2000);
 
-      toast.success("A4 Order Form PDF downloaded!");
+      toast.success("A4 Order Form PDF download started!");
     } catch (err) {
       console.error("PDF download error:", err);
-      toast.error("Could not download file. Please try the Print option.");
+      // Fallback: direct window location to real HTTP server URL
+      const downloadUrl = getHttpDownloadUrl();
+      window.location.href = downloadUrl;
     } finally {
       setDownloading(false);
     }
@@ -209,7 +222,7 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span>{downloading ? "Saving…" : "Download / Save PDF"}</span>
+            <span>{downloading ? "Saving…" : "Download PDF"}</span>
           </button>
 
           <button
