@@ -170,7 +170,6 @@ export function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): j
   ];
 
   if (jerseySizeRows.length === 1) {
-    // Single size item (e.g. Size 32 with 12 jerseys) -> Distribute players across available rows
     const sz = jerseySizeRows[0];
     const playerTags = (sz.players || [])
       .map(formatPlayer)
@@ -180,7 +179,6 @@ export function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): j
     if (playerTags.length === 0) {
       rightCellRows[0].text = `Size: ${sz.size}  —  Quantity: ${sz.quantity} pcs`;
     } else {
-      // Chunk players into lines of 3-4 players each
       const chunkSize = 3;
       rightCellRows[0].text = `Size: ${sz.size} (${sz.quantity} pcs):  ${playerTags.slice(0, chunkSize).join(", ")}`;
       for (let r = 1; r < 5; r++) {
@@ -191,7 +189,6 @@ export function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): j
       }
     }
   } else if (jerseySizeRows.length > 1) {
-    // Multiple size items -> Assign each size to a row with its player names
     jerseySizeRows.slice(0, 5).forEach((sz, idx) => {
       rightCellRows[idx].qty = String(sz.quantity);
       const playerTags = (sz.players || [])
@@ -352,6 +349,31 @@ export function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): j
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.text(`Print Type: ${backPrintType}`, 109, t4Y + 20);
+  }
+
+  // ── Render Attached Images in Table 4 ──
+  const allImages = items.flatMap((it) => it.images || []);
+  if (allImages.length > 0) {
+    allImages.slice(0, 2).forEach((img, idx) => {
+      const isFirst = idx === 0;
+      const boxX = isFirst ? 18 : 109;
+      const startY = t4Y + 34;
+
+      if (img.url.startsWith("data:image")) {
+        try {
+          doc.addImage(img.url, "JPEG", boxX, startY, 40, 40);
+        } catch {
+          doc.setFontSize(7);
+          doc.text(`Attached Image ${idx + 1}`, boxX, startY + 5);
+        }
+      } else if (img.url.startsWith("http")) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.text(`Photo ${idx + 1}:`, boxX, startY);
+        const splitUrl = doc.splitTextToSize(img.url, 80);
+        doc.text(splitUrl, boxX, startY + 5);
+      }
+    });
   }
 
   // 7. Footer: Delivery Date & Name/Sign

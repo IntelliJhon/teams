@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOrderStore } from "@/store/order-store";
-import { submitOrder } from "@/lib/api";
-import { ApiError } from "@/lib/api";
+import { submitOrder, ApiError } from "@/lib/api";
 import { ProgressBar } from "@/components/ProgressBar";
-import { BottomButton } from "@/components/BottomButton";
 import { ErrorState } from "@/components/ErrorState";
 import { productSchemas } from "@/config/product-schemas";
 import { IceFashionsOrderForm } from "@/components/IceFashionsOrderForm";
@@ -14,6 +12,8 @@ import { IceFashionsOrderForm } from "@/components/IceFashionsOrderForm";
 export default function ReviewPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showOrderFormModal, setShowOrderFormModal] = useState(false);
 
   const {
@@ -25,12 +25,26 @@ export default function ReviewPage() {
     items,
   } = useOrderStore();
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleDirectDownloadPdf = () => {
+    const payload = {
+      customer: {
+        customerPhone,
+        customerName,
+        customerAddress,
+        dispatchDate,
+        remarks,
+      },
+      items,
+    };
+    const jsonStr = encodeURIComponent(JSON.stringify(payload));
+    const base64Data = btoa(jsonStr);
+    const downloadUrl = `/api/generate-pdf?data=${base64Data}`;
+    window.location.href = downloadUrl;
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -80,29 +94,40 @@ export default function ReviewPage() {
       </div>
 
       {/* Download / View Order Form Button Card */}
-      <div className="mx-4 mb-4">
-        <button
-          type="button"
-          onClick={() => setShowOrderFormModal(true)}
-          className="w-full py-3.5 px-4 bg-emerald-50 hover:bg-emerald-100/80 active:bg-emerald-200/70 border-2 border-emerald-600 text-emerald-900 font-bold text-sm rounded-2xl flex items-center justify-between shadow-xs transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-3 text-left">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-sm font-bold text-emerald-950">Download Ice Fashions Form</div>
-              <div className="text-xs text-emerald-700 font-medium">View &amp; Save filled PDF order form</div>
-            </div>
+      <div className="mx-4 mb-4 bg-emerald-50/80 border-2 border-emerald-600 rounded-2xl p-3.5 shadow-xs">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
           </div>
+          <div>
+            <div className="text-sm font-bold text-emerald-950">Ice Fashions Order Form</div>
+            <div className="text-xs text-emerald-700 font-medium">Download filled 1-page A4 PDF or preview on screen</div>
+          </div>
+        </div>
 
-          <div className="text-xs font-semibold px-3 py-1.5 bg-emerald-600 text-white rounded-xl flex items-center gap-1">
-            <span>View PDF</span>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={handleDirectDownloadPdf}
+            className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Download PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowOrderFormModal(true)}
+            className="py-2.5 px-3 bg-white hover:bg-emerald-50 active:bg-emerald-100 text-emerald-900 border border-emerald-300 font-semibold text-xs rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer"
+          >
+            <span>View Form</span>
             <span>→</span>
-          </div>
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* Order header summary */}
@@ -138,60 +163,77 @@ export default function ReviewPage() {
                 <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                   #{idx + 1}
                 </span>
-                <h3 className="font-bold text-gray-800 text-sm">{item.productType}</h3>
-                <span className="ml-auto text-xs text-gray-400">
+                <span className="font-bold text-gray-900 text-base">
+                  {item.productType}
+                </span>
+                <span className="text-xs text-gray-400 font-medium ml-auto">
                   {totalQty} pcs
                 </span>
               </div>
 
-              {/* All fields */}
-              <div className="space-y-1.5 mb-3">
-                {schema.map((def) => {
-                  // Respect conditional visibility
-                  if (def.conditionalOn) {
-                    const watchVal = item.fields[def.conditionalOn.field];
-                    if (watchVal !== def.conditionalOn.value) return null;
-                  }
-                  const val = item.fields[def.id];
-                  if (!val) return null;
+              {/* Field values */}
+              <div className="space-y-1.5 mb-3 text-xs">
+                {schema.map((f) => {
+                  const val = item.fields[f.id];
+                  if (val === undefined || val === "" || val === false) return null;
+                  const displayVal = typeof val === "boolean" ? (val ? "Yes" : "No") : String(val);
                   return (
-                    <Row
-                      key={def.id}
-                      label={def.label.replace("Select Your ", "").replace("Select ", "")}
-                      value={String(val)}
-                    />
+                    <div key={f.id} className="flex gap-2">
+                      <span className="text-gray-400 font-medium min-w-[130px] flex-shrink-0">
+                        {f.label}
+                      </span>
+                      <span className="text-gray-800 font-semibold">{displayVal}</span>
+                    </div>
                   );
                 })}
               </div>
 
-              {/* Sizes */}
-              {item.sizeQuantities.length > 0 && (
-                <div className="pt-2 border-t border-gray-100">
-                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Sizes</p>
+              {/* Sizes summary & jersey player details */}
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-400 font-medium mb-1.5">Sizes</p>
+                <div className="space-y-2">
                   <div className="flex flex-wrap gap-1.5">
-                    {item.sizeQuantities.map((s, i) => {
-                      const filled = (s.players || []).filter((p) => p.number || p.name);
-                      return (
-                        <span
-                          key={i}
-                          className="text-xs font-medium text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg"
-                        >
-                          {s.size} × {s.quantity}
-                          {filled.length > 0 && (
-                            <span className="ml-1.5 text-[11px] font-bold text-emerald-700">
-                              ({filled.map((p) => `${p.number ? '#' + p.number : ''} ${p.name || ''}`.trim()).join(", ")})
-                            </span>
-                          )}
-                        </span>
-                      );
-                    })}
+                    {item.sizeQuantities.map((sq) => (
+                      <span
+                        key={sq.size}
+                        className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700"
+                      >
+                        {sq.size} × {sq.quantity}
+                      </span>
+                    ))}
                   </div>
+
+                  {/* Player Names/Numbers summary for Jersey */}
+                  {item.productType === "Jersey" &&
+                    item.sizeQuantities.some((sq) => sq.players && sq.players.length > 0) && (
+                      <div className="mt-2 bg-emerald-50/60 border border-emerald-100 rounded-xl p-2.5 text-xs">
+                        <p className="font-bold text-emerald-900 mb-1">Jersey Player Details:</p>
+                        <div className="space-y-1">
+                          {item.sizeQuantities
+                            .filter((sq) => sq.players && sq.players.length > 0)
+                            .map((sq) => {
+                              const validPlayers = (sq.players || []).filter((p) => p.number || p.name);
+                              if (validPlayers.length === 0) return null;
+                              return (
+                                <div key={sq.size} className="text-gray-700">
+                                  <span className="font-semibold text-emerald-800">Size {sq.size}: </span>
+                                  {validPlayers.map((p, pIdx) => (
+                                    <span key={pIdx} className="inline-block bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-[11px] font-medium mr-1 mb-0.5">
+                                      {p.number ? `#${p.number}` : ""} {p.name || ""}
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
                 </div>
-              )}
+              </div>
 
               {/* Images */}
               {item.images.length > 0 && (
-                <div className="mt-2 flex gap-2">
+                <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
                   {item.images.map((img, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -219,13 +261,14 @@ export default function ReviewPage() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => setShowOrderFormModal(true)}
+          onClick={handleDirectDownloadPdf}
           className="py-3.5 px-4 rounded-full border-2 border-emerald-600 text-emerald-700 font-semibold text-sm hover:bg-emerald-50 active:bg-emerald-100 transition-colors flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer"
+          title="Direct Download PDF"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          PDF Form
+          Direct PDF
         </button>
 
         <button

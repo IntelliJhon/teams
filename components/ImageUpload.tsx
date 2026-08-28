@@ -5,7 +5,7 @@ import { ProductImage } from "@/types";
 import { uploadImage, ApiError } from "@/lib/api";
 
 const MAX_FILES = 3;
-const MAX_SIZE_BYTES = 1 * 1024 * 1024; // 1 MB
+const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
 
 interface ImageUploadProps {
   value: ProductImage[];
@@ -14,8 +14,8 @@ interface ImageUploadProps {
 }
 
 interface UploadSlot {
-  localUrl: string;   // object URL for preview
-  remoteUrl?: string; // populated after successful upload
+  localUrl: string;   // object URL or base64 for preview
+  remoteUrl?: string; // populated after upload or base64 fallback
   uploading: boolean;
   uploadError?: string;
   file: File;
@@ -24,11 +24,9 @@ interface UploadSlot {
 /** Derive the committed ProductImage[] from current slots */
 function toProductImages(slots: UploadSlot[]): ProductImage[] {
   return slots
-    .filter((s) => s.remoteUrl)
-    .map((s) => ({ url: s.remoteUrl! }));
+    .filter((s) => s.remoteUrl || s.localUrl)
+    .map((s) => ({ url: s.remoteUrl || s.localUrl }));
 }
-
-const N8N_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_N8N_BASE_URL);
 
 export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
   const [slots, setSlots] = useState<UploadSlot[]>(
@@ -41,20 +39,27 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── helpers that update state then notify parent ──────────────
   const commitSlots = (next: UploadSlot[]) => {
     setSlots(next);
     onChange(toProductImages(next));
   };
 
-  // ── file selection handler ────────────────────────────────────
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
     const incoming = Array.from(files).slice(0, MAX_FILES - slots.length);
 
     for (const file of incoming) {
       if (file.size > MAX_SIZE_BYTES) {
-        alert(`"${file.name}" exceeds the 1 MB limit. Please compress the image.`);
+        alert(`"${file.name}" exceeds the 4 MB limit.`);
         continue;
       }
       if (!file.type.startsWith("image/")) {
@@ -62,79 +67,43 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         continue;
       }
 
-      const localUrl = URL.createObjectURL(file);
-
-      // If n8n URL isn't configured, treat image as local-only (no upload)
-      if (!N8N_CONFIGURED) {
-        const next = [...slots, { localUrl, uploading: false, file }];
-        setSlots(next);
-        // Local images without remoteUrl are intentionally excluded from
-        // onChange until n8n upload is configured
-        continue;
+      let dataUrl = "";
+      try {
+        dataUrl = await readFileAsDataUrl(file);
+      } catch {
+        dataUrl = URL.createObjectURL(file);
       }
 
-      // Add slot in uploading state
-      const newSlots = [...slots, { localUrl, uploading: true, file }];
+      // Add slot in uploading state with base64 preview
+      const newSlots = [...slots, { localUrl: dataUrl, remoteUrl: dataUrl, uploading: true, file }];
       setSlots(newSlots);
+      onChange(toProductImages(newSlots));
 
       try {
         const remoteUrl = await uploadImage(file);
-        // Read current slots at the time upload finishes, update the right slot
         setSlots((prev) => {
           const next = prev.map((s) =>
-            s.localUrl === localUrl ? { ...s, uploading: false, remoteUrl } : s
+            s.file === file ? { ...s, uploading: false, remoteUrl: remoteUrl || dataUrl } : s
           );
-          // Call onChange after state settles (not inside the updater)
-          // by scheduling a microtask
           Promise.resolve().then(() => onChange(toProductImages(next)));
           return next;
         });
       } catch (err) {
-        const msg = err instanceof ApiError ? err.message : "Upload failed.";
-        setSlots((prev) =>
-          prev.map((s) =>
-            s.localUrl === localUrl
-              ? { ...s, uploading: false, uploadError: msg }
-              : s
-          )
-        );
+        // Fallback: retain base64 dataUrl so image is never lost in JSON or PDF
+        setSlots((prev) => {
+          const next = prev.map((s) =>
+            s.file === file ? { ...s, uploading: false, remoteUrl: dataUrl } : s
+          );
+          Promise.resolve().then(() => onChange(toProductImages(next)));
+          return next;
+        });
       }
     }
   };
 
-  // ── remove a slot ─────────────────────────────────────────────
   const removeSlot = (idx: number) => {
     const next = slots.filter((_, i) => i !== idx);
-    commitSlots(next); // safe: computed outside updater
-  };
-
-  // ── retry a failed upload ─────────────────────────────────────
-  const retrySlot = async (idx: number) => {
-    const slot = slots[idx];
-    if (!slot) return;
-
-    const withRetrying = slots.map((s, i) =>
-      i === idx ? { ...s, uploading: true, uploadError: undefined } : s
-    );
-    setSlots(withRetrying);
-
-    try {
-      const remoteUrl = await uploadImage(slot.file);
-      setSlots((prev) => {
-        const next = prev.map((s, i) =>
-          i === idx ? { ...s, uploading: false, remoteUrl } : s
-        );
-        Promise.resolve().then(() => onChange(toProductImages(next)));
-        return next;
-      });
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Upload failed.";
-      setSlots((prev) =>
-        prev.map((s, i) =>
-          i === idx ? { ...s, uploading: false, uploadError: msg } : s
-        )
-      );
-    }
+    commitSlots(next);
   };
 
   const canAddMore = slots.length < MAX_FILES;
@@ -148,23 +117,15 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         Upload Image
       </p>
       <p className="text-xs text-gray-500 mb-3">
-        Add up to 3 photos. Max file size 1 MB.
+        Add up to 3 photos. Max file size 4 MB.
       </p>
 
-      {/* n8n not configured notice */}
-      {!N8N_CONFIGURED && (
-        <div className="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-xl text-xs text-yellow-700 font-medium">
-          Image upload requires <code>NEXT_PUBLIC_N8N_BASE_URL</code> to be set.
-          Images are shown for preview only.
-        </div>
-      )}
-
-      {/* Take photo button (Image 2 style) */}
+      {/* Take photo / Select Image button */}
       {canAddMore && (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="w-full py-2.5 px-4 rounded-full border border-emerald-600 bg-white text-emerald-700 text-sm font-medium flex items-center justify-center gap-2 active:bg-emerald-50 transition-colors mb-3"
+          className="w-full py-2.5 px-4 rounded-full border border-emerald-600 bg-white text-emerald-700 text-sm font-medium flex items-center justify-center gap-2 active:bg-emerald-50 transition-colors mb-3 cursor-pointer"
         >
           <svg
             className="w-5 h-5 text-emerald-700"
@@ -184,7 +145,7 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
               d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
             />
           </svg>
-          Take photo
+          <span>Take photo / Upload</span>
         </button>
       )}
 
@@ -193,7 +154,7 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         <div className="flex flex-wrap gap-3 mt-2">
           {slots.map((slot, idx) => (
             <div
-              key={slot.localUrl}
+              key={idx}
               className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -217,7 +178,7 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
                       cy="12"
                       r="10"
                       stroke="currentColor"
-                      strokeWidth="4"
+                      strokeWidth={4}
                     />
                     <path
                       className="opacity-75"
@@ -228,30 +189,13 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
                 </div>
               )}
 
-              {/* Upload error */}
-              {slot.uploadError && (
-                <div className="absolute inset-0 bg-red-500/80 flex flex-col items-center justify-center gap-1 p-1">
-                  <span className="text-white text-[9px] text-center leading-tight">
-                    {slot.uploadError}
-                  </span>
-                  {N8N_CONFIGURED && (
-                    <button
-                      type="button"
-                      onClick={() => retrySlot(idx)}
-                      className="text-white text-[9px] underline"
-                    >
-                      Retry
-                    </button>
-                  )}
-                </div>
-              )}
-
               {/* Remove button */}
               {!slot.uploading && (
                 <button
                   type="button"
                   onClick={() => removeSlot(idx)}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80"
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 cursor-pointer"
+                  aria-label="Remove image"
                 >
                   <svg
                     className="w-3 h-3 text-white"
@@ -281,7 +225,6 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         className="hidden"
         onChange={(e) => {
           handleFiles(e.target.files);
-          // Reset input so same file can be re-selected after removal
           e.target.value = "";
         }}
       />

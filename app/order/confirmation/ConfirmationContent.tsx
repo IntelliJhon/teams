@@ -34,12 +34,31 @@ export default function ConfirmationContent() {
     }
   };
 
+  const handleDone = () => {
+    // 1. Attempt to close the in-app browser window
+    try {
+      window.close();
+    } catch {
+      // ignore
+    }
+
+    // 2. If window.close() is prevented by browser sandbox, return to WhatsApp or history
+    setTimeout(() => {
+      if (document.referrer && document.referrer.includes("whatsapp")) {
+        window.location.href = document.referrer;
+      } else {
+        // WhatsApp deep link to bring user back to their chat
+        window.location.href = "whatsapp://";
+      }
+    }, 120);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 py-12 text-center">
       {/* Success icon */}
-      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
+      <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6 shadow-sm">
         <svg
-          className="w-10 h-10 text-green-500"
+          className="w-10 h-10 text-emerald-600"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -63,37 +82,49 @@ export default function ConfirmationContent() {
         </div>
       )}
 
-      {/* Invoice download */}
+      {/* Invoice download if available */}
       {invoiceToken && (
         <button
           onClick={handleDownloadInvoice}
           disabled={invoiceLoading}
-          className="w-full max-w-xs py-4 bg-green-500 text-white rounded-2xl font-semibold text-base shadow-lg shadow-green-500/20 active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+          className="w-full max-w-xs py-3.5 bg-white border border-emerald-600 text-emerald-700 rounded-2xl font-semibold text-sm shadow-xs active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2 mb-3 cursor-pointer"
         >
           {invoiceLoading ? (
             <>
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
-              Downloading…
+              <span>Downloading…</span>
             </>
           ) : (
             <>
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Download Invoice
+              <span>Download Invoice</span>
             </>
           )}
         </button>
       )}
 
       {invoiceError && (
-        <p className="mt-3 text-xs text-red-500 font-medium">{invoiceError}</p>
+        <p className="mb-3 text-xs text-red-500 font-medium">{invoiceError}</p>
       )}
 
-      <p className="mt-8 text-xs text-gray-400">
+      {/* Prominent Done / Close App Button */}
+      <button
+        type="button"
+        onClick={handleDone}
+        className="w-full max-w-xs py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-full font-bold text-base shadow-lg shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        <span>Done</span>
+      </button>
+
+      <p className="mt-6 text-xs text-gray-400">
         You can close this page. A copy has been sent to your number.
       </p>
     </div>
