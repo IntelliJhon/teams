@@ -14,7 +14,6 @@ export default function ConfirmationContent() {
 
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
-  const [isDone, setIsDone] = useState(false);
 
   // Clear the cart on mount — order is submitted
   useEffect(() => {
@@ -33,21 +32,6 @@ export default function ConfirmationContent() {
     } finally {
       setInvoiceLoading(false);
     }
-  };
-
-  const handleDone = () => {
-    setIsDone(true);
-
-    // 1. Try closing window
-    try {
-      window.open("", "_self", "");
-      window.close();
-    } catch {}
-
-    // 2. Open WhatsApp directly
-    try {
-      window.location.href = "whatsapp://";
-    } catch {}
   };
 
   return (
@@ -114,27 +98,20 @@ export default function ConfirmationContent() {
           <p className="mb-3 text-xs text-red-500 font-medium">{invoiceError}</p>
         )}
 
-        {/* Done / Close Button */}
-        <button
-          type="button"
-          onClick={handleDone}
-          className="w-full py-3.5 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-2xl font-black text-sm shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        {/* Done Button — Direct link to WhatsApp chat */}
+        <a
+          href="https://wa.me/918086863111"
+          className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-2xl font-black text-sm shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer no-underline"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
           <span>Done</span>
-        </button>
+        </a>
 
-        {isDone ? (
-          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 font-medium w-full animate-fade-in">
-            ✓ Order recorded! Tap the <b>✕</b> at top left to return to your chat.
-          </div>
-        ) : (
-          <p className="mt-4 text-[11px] text-gray-400 font-medium">
-            Tap <b>Done</b> or the <b>✕</b> at top left to return to WhatsApp.
-          </p>
-        )}
+        <p className="mt-4 text-[11px] text-gray-400 font-medium">
+          Tap <b>Done</b> to return to WhatsApp.
+        </p>
       </div>
     </div>
   );
