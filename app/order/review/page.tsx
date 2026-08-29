@@ -8,7 +8,6 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { ErrorState } from "@/components/ErrorState";
 import { productSchemas } from "@/config/product-schemas";
 import { IceFashionsOrderForm } from "@/components/IceFashionsOrderForm";
-
 import { downloadIceFashionsPdf } from "@/lib/downloadPdf";
 
 export default function ReviewPage() {
@@ -19,6 +18,7 @@ export default function ReviewPage() {
   const [showOrderFormModal, setShowOrderFormModal] = useState(false);
 
   const {
+    setHeader,
     customerPhone,
     customerName,
     customerAddress,
@@ -27,9 +27,12 @@ export default function ReviewPage() {
     items,
   } = useOrderStore();
 
+  const [localRemarks, setLocalRemarks] = useState(remarks || "");
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+    setLocalRemarks(remarks || "");
+  }, [remarks]);
 
   const handleDirectDownloadPdf = async () => {
     await downloadIceFashionsPdf({
@@ -38,7 +41,7 @@ export default function ReviewPage() {
         customerName,
         customerAddress,
         dispatchDate,
-        remarks,
+        remarks: localRemarks,
       },
       items,
     });
@@ -55,7 +58,7 @@ export default function ReviewPage() {
         customerName,
         customerAddress,
         dispatchDate,
-        remarks,
+        remarks: localRemarks,
         items,
       });
       router.push(
@@ -138,7 +141,6 @@ export default function ReviewPage() {
           {customerName && <Row label="Name" value={customerName} />}
           {customerAddress && <Row label="Address" value={customerAddress} />}
           {dispatchDate && <Row label="Dispatch Date" value={dispatchDate} />}
-          {remarks && <Row label="Remarks" value={remarks} />}
         </div>
       </div>
 
@@ -246,6 +248,49 @@ export default function ReviewPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Final Portion Remarks / Special Instructions Box */}
+      <div className="mx-4 mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-2">
+          <label
+            htmlFor="order-remarks"
+            className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5"
+          >
+            <svg
+              className="w-4 h-4 text-emerald-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            <span>Remarks / Special Instructions</span>
+          </label>
+          <span className="text-[10px] bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">
+            Included in PDF
+          </span>
+        </div>
+
+        <textarea
+          id="order-remarks"
+          value={localRemarks}
+          onChange={(e) => {
+            setLocalRemarks(e.target.value);
+            setHeader({ remarks: e.target.value });
+          }}
+          placeholder="Enter special instructions, collar notes, packing remarks, or customer notes..."
+          rows={3}
+          className="w-full text-sm text-gray-900 placeholder-gray-400 bg-gray-50/80 border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none font-medium"
+        />
+        <p className="mt-1.5 text-[11px] text-gray-400">
+          Any remarks entered here will be included in the JSON payload, Google Sheets, and PDF order form.
+        </p>
       </div>
 
       {/* Error */}
