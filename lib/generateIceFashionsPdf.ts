@@ -351,27 +351,45 @@ export function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): j
     doc.text(`Print Type: ${backPrintType}`, 109, t4Y + 20);
   }
 
-  // ── Render Attached Images in Table 4 ──
+  // ── Render Clickable Image Links in Table 4 ──
   const allImages = items.flatMap((it) => it.images || []);
   if (allImages.length > 0) {
-    allImages.slice(0, 2).forEach((img, idx) => {
-      const isFirst = idx === 0;
-      const boxX = isFirst ? 18 : 109;
-      const startY = t4Y + 34;
+    allImages.forEach((img, idx) => {
+      if (!img.url) return;
 
-      if (img.url.startsWith("data:image")) {
-        try {
-          doc.addImage(img.url, "JPEG", boxX, startY, 40, 40);
-        } catch {
-          doc.setFontSize(7);
-          doc.text(`Attached Image ${idx + 1}`, boxX, startY + 5);
-        }
-      } else if (img.url.startsWith("http")) {
+      const isEven = idx % 2 === 0;
+      const boxX = isEven ? 18 : 109;
+      const rowOffset = Math.floor(idx / 2) * 22;
+      const startY = t4Y + 34 + rowOffset;
+
+      // Ensure we don't overflow the print box
+      if (startY + 18 <= t4Y + printBoxH + 5) {
+        // Draw blue link container badge
+        doc.setFillColor(239, 246, 255); // light-blue fill
+        doc.setDrawColor(59, 130, 246); // blue border
+        doc.setLineWidth(0.3);
+        doc.roundedRect(boxX, startY, 82, 16, 2, 2, "FD");
+
+        // Clickable link annotation over the full badge box
+        doc.link(boxX, startY, 82, 16, { url: img.url });
+
+        // Title text
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(29, 78, 216); // blue-700
+        doc.text(`[CLICK HERE] View Uploaded Photo ${idx + 1} ->`, boxX + 3, startY + 5.5);
+
+        // URL display line
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.5);
-        doc.text(`Photo ${idx + 1}:`, boxX, startY);
-        const splitUrl = doc.splitTextToSize(img.url, 80);
-        doc.text(splitUrl, boxX, startY + 5);
+        doc.setFontSize(6.5);
+        doc.setTextColor(37, 99, 235); // blue-600
+        const shortDisplayUrl = img.url.length > 45 ? img.url.slice(0, 42) + "..." : img.url;
+        doc.text(shortDisplayUrl, boxX + 3, startY + 11);
+
+        // Reset draw & text colors for subsequent elements
+        doc.setTextColor(0, 0, 0);
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
       }
     });
   }

@@ -361,26 +361,54 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
 
             <div className="grid grid-cols-2 divide-x border-black text-[9px] sm:text-[11px] min-h-[50px] sm:min-h-[70px]">
               {/* Front Print Box */}
-              <div className="p-2">
-                <p className="font-bold uppercase text-[9px] sm:text-[10px] text-gray-900">
-                  Front Print: <span className={frontPrintYes ? "text-emerald-700" : "text-gray-600"}>{frontPrintYes ? "YES" : "NO"}</span>
-                </p>
-                {frontPrintYes && (
-                  <p className="mt-0.5 text-gray-800">
-                    Type: <span className="font-bold">{frontPrintType}</span>
+              <div className="p-2 flex flex-col justify-between">
+                <div>
+                  <p className="font-bold uppercase text-[9px] sm:text-[10px] text-gray-900">
+                    Front Print: <span className={frontPrintYes ? "text-emerald-700" : "text-gray-600"}>{frontPrintYes ? "YES" : "NO"}</span>
                   </p>
+                  {frontPrintYes && (
+                    <p className="mt-0.5 text-gray-800">
+                      Type: <span className="font-bold">{frontPrintType}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Attached image link if present */}
+                {items[0]?.images?.[0]?.url && (
+                  <a
+                    href={items[0].images[0].url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] sm:text-[10px] font-bold rounded-lg transition-colors cursor-pointer w-fit"
+                  >
+                    <span>🔗 Photo 1 Link ↗</span>
+                  </a>
                 )}
               </div>
 
               {/* Back Print Box */}
-              <div className="p-2">
-                <p className="font-bold uppercase text-[9px] sm:text-[10px] text-gray-900">
-                  Back Print: <span className={backPrintYes ? "text-emerald-700" : "text-gray-600"}>{backPrintYes ? "YES" : "NO"}</span>
-                </p>
-                {backPrintYes && (
-                  <p className="mt-0.5 text-gray-800">
-                    Type: <span className="font-bold">{backPrintType}</span>
+              <div className="p-2 flex flex-col justify-between">
+                <div>
+                  <p className="font-bold uppercase text-[9px] sm:text-[10px] text-gray-900">
+                    Back Print: <span className={backPrintYes ? "text-emerald-700" : "text-gray-600"}>{backPrintYes ? "YES" : "NO"}</span>
                   </p>
+                  {backPrintYes && (
+                    <p className="mt-0.5 text-gray-800">
+                      Type: <span className="font-bold">{backPrintType}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Attached image link if present */}
+                {items[0]?.images?.[1]?.url && (
+                  <a
+                    href={items[0].images[1].url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] sm:text-[10px] font-bold rounded-lg transition-colors cursor-pointer w-fit"
+                  >
+                    <span>🔗 Photo 2 Link ↗</span>
+                  </a>
                 )}
               </div>
             </div>
