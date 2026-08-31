@@ -15,7 +15,8 @@ export async function POST(
       process.env.NEXT_PUBLIC_N8N_BASE_URL ||
       "https://n8n.srv1691210.hstgr.cloud/webhook";
 
-    const targetUrl = `${n8nBase.replace(/\/+$/, "")}/order-update/${orderId}?token=${encodeURIComponent(token)}`;
+    // Call n8n using query-param format (/webhook/order-update?orderId=...&token=...)
+    const targetUrl = `${n8nBase.replace(/\/+$/, "")}/order-update?orderId=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`;
 
     const response = await fetch(targetUrl, {
       method: "POST",

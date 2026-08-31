@@ -7,7 +7,7 @@ import { getOrder, updateOrder, ApiError } from "@/lib/api";
 import { CartItem } from "@/components/CartItem";
 import { ErrorState } from "@/components/ErrorState";
 import { BottomButton } from "@/components/BottomButton";
-import { Order } from "@/types";
+import { Order, ProductLineItem } from "@/types";
 
 type PageState = "loading" | "locked" | "error" | "ready" | "saving";
 
@@ -24,6 +24,7 @@ export default function EditOrderContent() {
     items,
     customerPhone,
     customerName,
+    customerAddress,
     dispatchDate,
     remarks,
     removeItem,
@@ -42,20 +43,65 @@ export default function EditOrderContent() {
     }
     setPageState("loading");
     getOrder(orderId, token)
-      .then((fetched) => {
+      .then((fetched: any) => {
         setOrder(fetched);
-        if (fetched.status !== "Submitted") {
+        if (fetched.status && fetched.status !== "Submitted") {
           setPageState("locked");
           return;
         }
+
+        // Resiliently parse items from raw JSON or sheet columns
+        let rawItems = fetched.items || [];
+        if (typeof rawItems === "string") {
+          try {
+            rawItems = JSON.parse(rawItems);
+          } catch {
+            rawItems = [];
+          }
+        }
+
+        const cleanItems: ProductLineItem[] = Array.isArray(rawItems)
+          ? rawItems.map((it: any, i: number) => {
+              let fields = it.fields || {};
+              if (typeof fields === "string") {
+                try {
+                  fields = JSON.parse(fields);
+                } catch {}
+              }
+
+              let sizeQuantities = it.sizeQuantities || [];
+              if (typeof sizeQuantities === "string") {
+                try {
+                  sizeQuantities = JSON.parse(sizeQuantities);
+                } catch {}
+              }
+
+              let images = it.images || [];
+              if (typeof images === "string") {
+                try {
+                  images = JSON.parse(images);
+                } catch {}
+              }
+
+              return {
+                lineId: it.lineId || it.id || `item_${i + 1}`,
+                productType: it.productType || "Jersey",
+                fields,
+                sizeQuantities,
+                images,
+              };
+            })
+          : [];
+
         hydrateFromOrder(
           {
-            customerPhone: fetched.customerPhone,
-            customerName: fetched.customerName,
-            dispatchDate: fetched.dispatchDate,
-            remarks: fetched.remarks,
+            customerPhone: fetched.customerPhone || "",
+            customerName: fetched.customerName || "",
+            customerAddress: fetched.customerAddress || "",
+            dispatchDate: fetched.dispatchDate || new Date().toISOString().split("T")[0],
+            remarks: fetched.remarks || "",
           },
-          fetched.items,
+          cleanItems,
           orderId,
           token
         );
@@ -77,6 +123,7 @@ export default function EditOrderContent() {
       await updateOrder(orderId, token, {
         customerPhone,
         customerName,
+        customerAddress,
         dispatchDate,
         remarks,
         items,
@@ -150,7 +197,7 @@ export default function EditOrderContent() {
 
         <button
           onClick={() => router.push("/order/new/add-product")}
-          className="w-full py-3.5 border-2 border-dashed border-green-300 rounded-2xl text-green-600 font-semibold text-sm flex items-center justify-center gap-2 active:bg-green-50"
+          className="w-full py-3.5 border-2 border-dashed border-green-300 rounded-2xl text-green-600 font-semibold text-sm flex items-center justify-center gap-2 active:bg-green-50 cursor-pointer"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

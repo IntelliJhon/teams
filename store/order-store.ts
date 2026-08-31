@@ -90,6 +90,7 @@ export const useOrderStore = create<OrderState>()(
         set({
           customerPhone: header.customerPhone,
           customerName: header.customerName ?? "",
+          customerAddress: header.customerAddress ?? "",
           dispatchDate: header.dispatchDate,
           remarks: header.remarks ?? "",
           items,
