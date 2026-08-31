@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOrderStore } from "@/store/order-store";
-import { submitOrder, ApiError } from "@/lib/api";
+import { submitOrder, updateOrder, ApiError } from "@/lib/api";
 import { ProgressBar } from "@/components/ProgressBar";
 import { ErrorState } from "@/components/ErrorState";
 import { productSchemas } from "@/config/product-schemas";
@@ -25,8 +25,11 @@ export default function ReviewPage() {
     dispatchDate,
     remarks,
     items,
+    editOrderId,
+    editToken,
   } = useOrderStore();
 
+  const isEditing = Boolean(editOrderId && editToken);
   const [localRemarks, setLocalRemarks] = useState(remarks || "");
 
   useEffect(() => {
@@ -51,19 +54,37 @@ export default function ReviewPage() {
     setError(null);
     setLoading(true);
     try {
-      const finalOrderId = `ORD-${Date.now()}`;
-      const result = await submitOrder({
-        orderId: finalOrderId,
-        customerPhone,
-        customerName,
-        customerAddress,
-        dispatchDate,
-        remarks: localRemarks,
-        items,
-      });
-      router.push(
-        `/order/confirmation?orderId=${result.orderId || finalOrderId}&invoiceToken=${result.invoiceToken || ""}`
-      );
+      if (isEditing && editOrderId && editToken) {
+        // Update existing order in n8n & Google Sheets
+        await updateOrder(editOrderId, editToken, {
+          customerPhone,
+          customerName,
+          customerAddress,
+          dispatchDate,
+          remarks: localRemarks,
+          items,
+        });
+
+        router.push(
+          `/order/confirmation?orderId=${encodeURIComponent(editOrderId)}&invoiceToken=${encodeURIComponent(editToken)}&updated=true`
+        );
+      } else {
+        // New order submission
+        const finalOrderId = `ORD-${Date.now()}`;
+        const result = await submitOrder({
+          orderId: finalOrderId,
+          customerPhone,
+          customerName,
+          customerAddress,
+          dispatchDate,
+          remarks: localRemarks,
+          items,
+        });
+
+        router.push(
+          `/order/confirmation?orderId=${encodeURIComponent(result.orderId || finalOrderId)}&invoiceToken=${encodeURIComponent(result.invoiceToken || "")}`
+        );
+      }
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -85,12 +106,27 @@ export default function ReviewPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-36">
-      <ProgressBar currentStep={4} totalSteps={4} label="Review & Submit" />
+      <ProgressBar
+        currentStep={4}
+        totalSteps={4}
+        label={isEditing ? `Edit Order #${editOrderId}` : "Review & Submit"}
+      />
 
       <div className="pt-14 px-4 py-5">
-        <h1 className="text-xl font-bold text-gray-900">Review Order</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold text-gray-900">
+            {isEditing ? "Review & Save Changes" : "Review Order"}
+          </h1>
+          {isEditing && (
+            <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2.5 py-0.5 rounded-full">
+              Editing
+            </span>
+          )}
+        </div>
         <p className="text-sm text-gray-500 mt-1">
-          Check everything before submitting or download your Ice Fashions form.
+          {isEditing
+            ? `Review changes to order #${editOrderId} before saving.`
+            : "Check everything before submitting or download your Ice Fashions form."}
         </p>
       </div>
 
@@ -137,6 +173,7 @@ export default function ReviewPage() {
           Order Details
         </h2>
         <div className="space-y-2">
+          {isEditing && editOrderId && <Row label="Order ID" value={editOrderId} />}
           <Row label="Phone" value={customerPhone || "—"} />
           {customerName && <Row label="Name" value={customerName} />}
           {customerAddress && <Row label="Address" value={customerAddress} />}
@@ -318,9 +355,15 @@ export default function ReviewPage() {
           type="button"
           onClick={handleSubmit}
           disabled={loading}
-          className="flex-1 py-3.5 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium text-base transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center cursor-pointer"
+          className="flex-1 py-3.5 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-base transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center cursor-pointer"
         >
-          {loading ? "Submitting…" : "Submit Order"}
+          {loading
+            ? isEditing
+              ? "Saving Changes…"
+              : "Submitting…"
+            : isEditing
+            ? "Save & Update Order"
+            : "Submit Order"}
         </button>
       </div>
 

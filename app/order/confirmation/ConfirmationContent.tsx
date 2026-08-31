@@ -9,13 +9,14 @@ export default function ConfirmationContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId") ?? "";
   const invoiceToken = searchParams.get("invoiceToken") ?? "";
+  const isUpdated = searchParams.get("updated") === "true";
 
   const clearOrder = useOrderStore((s) => s.clearOrder);
 
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
-  // Clear the cart on mount — order is submitted
+  // Clear the cart on mount — order is submitted or updated
   useEffect(() => {
     clearOrder();
   }, [clearOrder]);
@@ -51,9 +52,13 @@ export default function ConfirmationContent() {
           </svg>
         </div>
 
-        <h1 className="text-2xl font-black text-gray-900 mb-1.5">Order Submitted!</h1>
+        <h1 className="text-2xl font-black text-gray-900 mb-1.5">
+          {isUpdated ? "Order Updated!" : "Order Submitted!"}
+        </h1>
         <p className="text-xs text-gray-500 mb-5 leading-relaxed max-w-xs">
-          Your order has been recorded successfully.
+          {isUpdated
+            ? "Your changes have been saved to your order successfully."
+            : "Your order has been recorded successfully."}
         </p>
 
         {/* Order ID */}
