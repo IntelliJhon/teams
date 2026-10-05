@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { ProductImage } from "@/types";
 import { uploadImage, ApiError } from "@/lib/api";
 
-const MAX_FILES = 3;
+const MAX_FILES = 10;
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ImageUploadProps {
@@ -109,7 +109,7 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         Upload Image
       </p>
       <p className="text-xs text-gray-500 mb-3">
-        Add up to 3 photos.
+        Add up to 10 photos.
       </p>
 
       {/* Take photo / Select Image button */}

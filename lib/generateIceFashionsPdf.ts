@@ -351,40 +351,43 @@ export function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): j
     doc.text(`Print Type: ${backPrintType}`, 109, t4Y + 20);
   }
 
-  // ── Render Clickable Image Links in Table 4 ──
-  const allImages = items.flatMap((it) => it.images || []);
+  // ── Render Clickable Image Links in Table 4 (supports up to 10 photos) ──
+  const allImages = items.flatMap((it) => it.images || []).filter((img) => Boolean(img?.url));
   if (allImages.length > 0) {
-    allImages.forEach((img, idx) => {
-      if (!img.url) return;
+    const isDense = allImages.length > 4;
+    const badgeH = isDense ? 12 : 16;
+    const rowOffsetGap = isDense ? 13.5 : 20;
+    const baseStartY = isDense ? t4Y + 28 : t4Y + 34;
 
+    allImages.forEach((img, idx) => {
       const isEven = idx % 2 === 0;
       const boxX = isEven ? 18 : 109;
-      const rowOffset = Math.floor(idx / 2) * 22;
-      const startY = t4Y + 34 + rowOffset;
+      const rowOffset = Math.floor(idx / 2) * rowOffsetGap;
+      const startY = baseStartY + rowOffset;
 
       // Ensure we don't overflow the print box
-      if (startY + 18 <= t4Y + printBoxH + 5) {
+      if (startY + badgeH <= t4Y + printBoxH + 5) {
         // Draw blue link container badge
         doc.setFillColor(239, 246, 255); // light-blue fill
         doc.setDrawColor(59, 130, 246); // blue border
         doc.setLineWidth(0.3);
-        doc.roundedRect(boxX, startY, 82, 16, 2, 2, "FD");
+        doc.roundedRect(boxX, startY, 82, badgeH, 1.5, 1.5, "FD");
 
         // Clickable link annotation over the full badge box
-        doc.link(boxX, startY, 82, 16, { url: img.url });
+        doc.link(boxX, startY, 82, badgeH, { url: img.url });
 
         // Title text
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
+        doc.setFontSize(isDense ? 7.5 : 8);
         doc.setTextColor(29, 78, 216); // blue-700
-        doc.text(`[CLICK HERE] View Uploaded Photo ${idx + 1} ->`, boxX + 3, startY + 5.5);
+        doc.text(`[CLICK HERE] View Uploaded Photo ${idx + 1} ->`, boxX + 3, startY + (isDense ? 4.5 : 5.5));
 
         // URL display line
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(6.5);
+        doc.setFontSize(isDense ? 6 : 6.5);
         doc.setTextColor(37, 99, 235); // blue-600
         const shortDisplayUrl = img.url.length > 45 ? img.url.slice(0, 42) + "..." : img.url;
-        doc.text(shortDisplayUrl, boxX + 3, startY + 11);
+        doc.text(shortDisplayUrl, boxX + 3, startY + (isDense ? 9.5 : 11));
 
         // Reset draw & text colors for subsequent elements
         doc.setTextColor(0, 0, 0);

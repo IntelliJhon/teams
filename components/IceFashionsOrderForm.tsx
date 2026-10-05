@@ -44,6 +44,7 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
   const backPrintType = primaryFields.backPrintType || "—";
 
   const jerseySizeRows = primaryItem ? primaryItem.sizeQuantities : [];
+  const allUploadedImages = items.flatMap((it) => it.images || []).filter((img) => Boolean(img?.url));
 
   const orderNumber = `IF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
   const currentDate = new Date().toLocaleDateString("en-IN", {
@@ -373,16 +374,24 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
                   )}
                 </div>
 
-                {/* Attached image link if present */}
-                {items[0]?.images?.[0]?.url && (
-                  <a
-                    href={items[0].images[0].url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] sm:text-[10px] font-bold rounded-lg transition-colors cursor-pointer w-fit"
-                  >
-                    <span>🔗 Photo 1 Link ↗</span>
-                  </a>
+                {/* Attached image links for odd-indexed photos */}
+                {allUploadedImages.filter((_, idx) => idx % 2 === 0).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {allUploadedImages.map((img, idx) => {
+                      if (idx % 2 !== 0) return null;
+                      return (
+                        <a
+                          key={idx}
+                          href={img.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] font-bold rounded transition-colors cursor-pointer"
+                        >
+                          <span>🔗 Photo {idx + 1} ↗</span>
+                        </a>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
@@ -399,16 +408,24 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
                   )}
                 </div>
 
-                {/* Attached image link if present */}
-                {items[0]?.images?.[1]?.url && (
-                  <a
-                    href={items[0].images[1].url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] sm:text-[10px] font-bold rounded-lg transition-colors cursor-pointer w-fit"
-                  >
-                    <span>🔗 Photo 2 Link ↗</span>
-                  </a>
+                {/* Attached image links for even-indexed photos */}
+                {allUploadedImages.filter((_, idx) => idx % 2 !== 0).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {allUploadedImages.map((img, idx) => {
+                      if (idx % 2 === 0) return null;
+                      return (
+                        <a
+                          key={idx}
+                          href={img.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] font-bold rounded transition-colors cursor-pointer"
+                        >
+                          <span>🔗 Photo {idx + 1} ↗</span>
+                        </a>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>

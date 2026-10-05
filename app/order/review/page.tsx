@@ -270,7 +270,7 @@ export default function ReviewPage() {
 
               {/* Images */}
               {item.images.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
+                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
                   {item.images.map((img, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
