@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const doc = generateIceFashionsPdf({ customer, items });
+    const doc = await generateIceFashionsPdf({ customer, items });
     const arrayBuffer = doc.output("arraybuffer");
     const fileName = `ICE_FASHIONS_ORDER_${(customer?.customerName || "FORM").replace(/\s+/g, "_")}.pdf`;
 
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     const name = searchParams.get("name") || "";
 
     // Always generate and stream a valid PDF file — never return JSON
-    const doc = generateIceFashionsPdf({
+    const doc = await generateIceFashionsPdf({
       customer: {
         customerPhone: phone,
         customerName: name,

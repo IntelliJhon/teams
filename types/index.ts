@@ -17,6 +17,7 @@ export interface SizeQuantity {
 
 export interface ProductImage {
   url: string;
+  thumbnail?: string; // compact base64 thumbnail for instant preview & PDF rendering
 }
 
 export interface ProductLineItem {

@@ -19,7 +19,7 @@ export async function downloadIceFashionsPdf({ customer, items }: DownloadPdfOpt
   // 1. Try Native Web Share API first (Fastest on supported mobile devices)
   if (typeof navigator !== "undefined" && navigator.canShare) {
     try {
-      const doc = generateIceFashionsPdf({ customer, items });
+      const doc = await generateIceFashionsPdf({ customer, items });
       const blob = doc.output("blob");
       const file = new File([blob], fileName, { type: "application/pdf" });
 
@@ -60,7 +60,7 @@ export async function downloadIceFashionsPdf({ customer, items }: DownloadPdfOpt
 
     // Fallback: client-side blob anchor
     try {
-      const doc = generateIceFashionsPdf({ customer, items });
+      const doc = await generateIceFashionsPdf({ customer, items });
       const blob = doc.output("blob");
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");

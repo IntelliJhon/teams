@@ -100,13 +100,26 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
       {item.images.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {item.images.map((img, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <a
               key={i}
-              src={img.url}
-              alt={`ref-${i}`}
-              className="w-12 h-12 rounded-xl object-cover border border-gray-200"
-            />
+              href={img.url}
+              target="_blank"
+              rel="noreferrer"
+              className="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-85 transition-opacity"
+              title={`View photo ${i + 1}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={img.thumbnail || img.url}
+                alt={`ref-${i}`}
+                className="w-12 h-12 object-cover"
+                onError={(e) => {
+                  if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
+                    e.currentTarget.src = img.thumbnail;
+                  }
+                }}
+              />
+            </a>
           ))}
         </div>
       )}

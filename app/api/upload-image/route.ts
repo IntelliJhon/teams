@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveImage } from "@/lib/imageStore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,7 +14,7 @@ export async function POST(req: NextRequest) {
     const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
     const mimeType = file.type || "image/jpeg";
 
-    // 1. Primary: Upload to permanent public CDN (Catbox.moe - files never expire)
+    // 1. Primary: Upload to permanent public CDN (Catbox.moe)
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const catboxForm = new FormData();
@@ -47,7 +46,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Secondary: Forward to n8n webhook if configured
+    // 2. Secondary: Upload to Uguu CDN
+    try {
+      const uguuForm = new FormData();
+      const blob = new Blob([buffer], { type: mimeType });
+      uguuForm.append("files[]", blob, file.name || imageId);
+
+      const uguuResp = await fetch("https://uguu.se/upload", {
+        method: "POST",
+        body: uguuForm,
+      });
+
+      if (uguuResp.ok) {
+        const uguuData = await uguuResp.json();
+        const publicUrl = uguuData?.files?.[0]?.url;
+        if (publicUrl && publicUrl.startsWith("http")) {
+          return NextResponse.json({ url: publicUrl });
+        }
+      }
+    } catch (uguuErr) {
+      console.warn("[Upload] Uguu error:", uguuErr);
+    }
+
+    // 3. Forward to n8n webhook if configured
     const n8nBase =
       process.env.N8N_WEBHOOK_URL ||
       process.env.NEXT_PUBLIC_N8N_BASE_URL ||
@@ -71,15 +92,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Fallback: Save in image store
-    saveImage(imageId, buffer, mimeType);
-    const origin =
-      req.headers.get("origin") ||
-      req.headers.get("x-forwarded-host")
-        ? `https://${req.headers.get("x-forwarded-host")}`
-        : "https://teams-pi-nine.vercel.app";
-
-    return NextResponse.json({ url: `${origin}/api/images/${imageId}` });
+    // 4. Safe fallback: Return Base64 data URL (prevents 404 broken images)
+    const base64DataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+    return NextResponse.json({ url: base64DataUrl });
   } catch (err: any) {
     console.error("[Upload] Error saving image:", err);
     return NextResponse.json(

@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    const doc = generateIceFashionsPdf({
+    const doc = await generateIceFashionsPdf({
       customer: {
         customerPhone: "",
         dispatchDate: new Date().toISOString().split("T")[0],

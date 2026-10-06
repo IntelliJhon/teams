@@ -3,9 +3,10 @@
 import { useState, useRef } from "react";
 import { ProductImage } from "@/types";
 import { uploadImage, ApiError } from "@/lib/api";
+import { compressImage, createThumbnail } from "@/lib/imageCompress";
 
 const MAX_FILES = 10;
-const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
 
 interface ImageUploadProps {
   value: ProductImage[];
@@ -16,6 +17,7 @@ interface ImageUploadProps {
 interface UploadSlot {
   localUrl: string;   // object URL for local thumbnail preview
   remoteUrl?: string; // short URL from server
+  thumbnail?: string; // compact base64 dataUrl
   uploading: boolean;
   uploadError?: string;
   file: File;
@@ -24,14 +26,18 @@ interface UploadSlot {
 function toProductImages(slots: UploadSlot[]): ProductImage[] {
   return slots
     .filter((s) => s.remoteUrl)
-    .map((s) => ({ url: s.remoteUrl! }));
+    .map((s) => ({
+      url: s.remoteUrl!,
+      thumbnail: s.thumbnail,
+    }));
 }
 
 export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
   const [slots, setSlots] = useState<UploadSlot[]>(
     value.map((img) => ({
-      localUrl: img.url,
+      localUrl: img.thumbnail || img.url,
       remoteUrl: img.url,
+      thumbnail: img.thumbnail,
       uploading: false,
       file: new File([], "existing"),
     }))
@@ -49,7 +55,7 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
 
     for (const file of incoming) {
       if (file.size > MAX_SIZE_BYTES) {
-        alert(`"${file.name}" exceeds the 10 MB limit.`);
+        alert(`"${file.name}" exceeds the 15 MB limit.`);
         continue;
       }
       if (!file.type.startsWith("image/")) {
@@ -57,11 +63,14 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
         continue;
       }
 
+      // Generate local preview URL & instant base64 thumbnail
       const localUrl = URL.createObjectURL(file);
+      const thumb = await createThumbnail(file, 140, 0.72);
 
       // Add slot in uploading state
       const newSlot: UploadSlot = {
         localUrl,
+        thumbnail: thumb,
         uploading: true,
         file,
       };
@@ -69,11 +78,14 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
       setSlots((prev) => [...prev, newSlot]);
 
       try {
-        const shortUrl = await uploadImage(file);
+        // Compress image before upload to downscale 5MB-10MB mobile photos to ~150KB
+        const compressedFile = await compressImage(file, 1600, 0.82);
+        const shortUrl = await uploadImage(compressedFile);
+
         setSlots((prev) => {
           const next = prev.map((s) =>
             s.file === file
-              ? { ...s, uploading: false, remoteUrl: shortUrl }
+              ? { ...s, uploading: false, remoteUrl: shortUrl, thumbnail: thumb }
               : s
           );
           Promise.resolve().then(() => onChange(toProductImages(next)));
@@ -140,6 +152,19 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
           <span>Take photo / Upload</span>
         </button>
       )}
+
+      {/* Hidden file input */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          handleFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
 
       {/* Thumbnails of uploaded images */}
       {slots.length > 0 && (
@@ -213,24 +238,32 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
                   </svg>
                 </button>
               )}
+
+              {/* Uploaded badge */}
+              {slot.remoteUrl && !slot.uploading && (
+                <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <svg
+                    className="w-2.5 h-2.5 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          handleFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-
-      {error && <p className="mt-2 text-xs text-red-500 font-medium">{error}</p>}
+      {/* General validation error */}
+      {error && <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );
 }

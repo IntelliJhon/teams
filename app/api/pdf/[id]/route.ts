@@ -22,7 +22,7 @@ export async function GET(
 
     const items = cached?.items || [];
 
-    const doc = generateIceFashionsPdf({ customer, items });
+    const doc = await generateIceFashionsPdf({ customer, items });
     const arrayBuffer = doc.output("arraybuffer");
     const safeName = (customer.customerName || "FORM").replace(/[^a-zA-Z0-9_-]/g, "_");
     const fileName = `ICE_FASHIONS_ORDER_${safeName}.pdf`;
