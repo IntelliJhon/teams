@@ -268,33 +268,101 @@ export default function ReviewPage() {
                 </div>
               </div>
 
-              {/* Images */}
-              {item.images.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
-                  {item.images.map((img, i) => (
-                    <a
-                      key={i}
-                      href={img.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-85 transition-opacity"
-                      title={`View photo ${i + 1}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={img.thumbnail || img.url}
-                        alt={`photo-${i + 1}`}
-                        className="w-12 h-12 object-cover"
-                        onError={(e) => {
-                          if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
-                            e.currentTarget.src = img.thumbnail;
-                          }
-                        }}
-                      />
-                    </a>
-                  ))}
+              {/* Front Images */}
+              {item.frontImages && item.frontImages.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-emerald-800 mb-1.5">
+                    Front Images ({item.frontImages.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {item.frontImages.map((img, i) => (
+                      <a
+                        key={i}
+                        href={img.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-xl overflow-hidden border border-emerald-200 hover:opacity-85 transition-opacity"
+                        title={`Front photo ${i + 1}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.thumbnail || img.url}
+                          alt={`front-${i + 1}`}
+                          className="w-12 h-12 object-cover"
+                          onError={(e) => {
+                            if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
+                              e.currentTarget.src = img.thumbnail;
+                            }
+                          }}
+                        />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* Back Images */}
+              {item.backImages && item.backImages.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-blue-800 mb-1.5">
+                    Back Images ({item.backImages.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {item.backImages.map((img, i) => (
+                      <a
+                        key={i}
+                        href={img.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-xl overflow-hidden border border-blue-200 hover:opacity-85 transition-opacity"
+                        title={`Back photo ${i + 1}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.thumbnail || img.url}
+                          alt={`back-${i + 1}`}
+                          className="w-12 h-12 object-cover"
+                          onError={(e) => {
+                            if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
+                              e.currentTarget.src = img.thumbnail;
+                            }
+                          }}
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Legacy Images if neither front nor back was set */}
+              {(!item.frontImages || item.frontImages.length === 0) &&
+                (!item.backImages || item.backImages.length === 0) &&
+                item.images.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                    {item.images.map((img, i) => (
+                      <a
+                        key={i}
+                        href={img.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-85 transition-opacity"
+                        title={`View photo ${i + 1}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.thumbnail || img.url}
+                          alt={`photo-${i + 1}`}
+                          className="w-12 h-12 object-cover"
+                          onError={(e) => {
+                            if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
+                              e.currentTarget.src = img.thumbnail;
+                            }
+                          }}
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
             </div>
           );
         })}

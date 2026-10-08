@@ -44,7 +44,16 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
   const backPrintType = primaryFields.backPrintType || "—";
 
   const jerseySizeRows = primaryItem ? primaryItem.sizeQuantities : [];
-  const allUploadedImages = items.flatMap((it) => it.images || []).filter((img) => Boolean(img?.url));
+  let allFrontImages = items.flatMap((it) => it.frontImages || []).filter((img) => Boolean(img?.url));
+  let allBackImages = items.flatMap((it) => it.backImages || []).filter((img) => Boolean(img?.url));
+
+  if (allFrontImages.length === 0 && allBackImages.length === 0) {
+    const legacyImages = items.flatMap((it) => it.images || []).filter((img) => Boolean(img?.url));
+    legacyImages.forEach((img, idx) => {
+      if (idx % 2 === 0) allFrontImages.push(img);
+      else allBackImages.push(img);
+    });
+  }
 
   const orderNumber = `IF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
   const currentDate = new Date().toLocaleDateString("en-IN", {
@@ -374,23 +383,20 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
                   )}
                 </div>
 
-                {/* Attached image links for odd-indexed photos */}
-                {allUploadedImages.filter((_, idx) => idx % 2 === 0).length > 0 && (
+                {/* Attached front image links (up to 10) */}
+                {allFrontImages.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {allUploadedImages.map((img, idx) => {
-                      if (idx % 2 !== 0) return null;
-                      return (
-                        <a
-                          key={idx}
-                          href={img.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] font-bold rounded transition-colors cursor-pointer"
-                        >
-                          <span>🔗 Photo {idx + 1} ↗</span>
-                        </a>
-                      );
-                    })}
+                    {allFrontImages.map((img, idx) => (
+                      <a
+                        key={idx}
+                        href={img.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] font-bold rounded transition-colors cursor-pointer"
+                      >
+                        <span>🔗 Front #{idx + 1} ↗</span>
+                      </a>
+                    ))}
                   </div>
                 )}
               </div>
@@ -408,23 +414,20 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
                   )}
                 </div>
 
-                {/* Attached image links for even-indexed photos */}
-                {allUploadedImages.filter((_, idx) => idx % 2 !== 0).length > 0 && (
+                {/* Attached back image links (up to 10) */}
+                {allBackImages.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {allUploadedImages.map((img, idx) => {
-                      if (idx % 2 === 0) return null;
-                      return (
-                        <a
-                          key={idx}
-                          href={img.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] font-bold rounded transition-colors cursor-pointer"
-                        >
-                          <span>🔗 Photo {idx + 1} ↗</span>
-                        </a>
-                      );
-                    })}
+                    {allBackImages.map((img, idx) => (
+                      <a
+                        key={idx}
+                        href={img.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-700 text-[9px] font-bold rounded transition-colors cursor-pointer"
+                      >
+                        <span>🔗 Back #{idx + 1} ↗</span>
+                      </a>
+                    ))}
                   </div>
                 )}
               </div>

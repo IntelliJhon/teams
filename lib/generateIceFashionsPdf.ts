@@ -372,29 +372,43 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
     doc.text(`Print Type: ${backPrintType}`, 109, t4Y + 18.5);
   }
 
-  // ── Render Real Photos & Clickable Badges (supports up to 10 photos) ──
-  const allImages = items.flatMap((it) => it.images || []).filter((img) => Boolean(img?.url || img?.thumbnail));
+  // ── Render Real Photos & Clickable Badges (Front up to 10, Back up to 10) ──
+  let rawFront = items.flatMap((it) => it.frontImages || []).filter((img) => Boolean(img?.url || img?.thumbnail));
+  let rawBack = items.flatMap((it) => it.backImages || []).filter((img) => Boolean(img?.url || img?.thumbnail));
+
+  // Legacy fallback: if front/back not explicitly set, distribute general images
+  if (rawFront.length === 0 && rawBack.length === 0) {
+    const legacyImages = items.flatMap((it) => it.images || []).filter((img) => Boolean(img?.url || img?.thumbnail));
+    legacyImages.forEach((img, idx) => {
+      if (idx % 2 === 0) rawFront.push(img);
+      else rawBack.push(img);
+    });
+  }
 
   // Pre-resolve base64 data URLs in parallel so real photos render inside the PDF
-  const resolvedImages = await Promise.all(
-    allImages.map(async (img) => ({
-      url: img.url,
-      dataUrl: await resolveImageDataUrl(img),
-    }))
-  );
+  const [resolvedFront, resolvedBack] = await Promise.all([
+    Promise.all(rawFront.map(async (img) => ({ url: img.url, dataUrl: await resolveImageDataUrl(img) }))),
+    Promise.all(rawBack.map(async (img) => ({ url: img.url, dataUrl: await resolveImageDataUrl(img) }))),
+  ]);
 
-  if (resolvedImages.length > 0) {
-    const isDense = resolvedImages.length > 4;
-    const badgeH = isDense ? 13 : 18;
-    const rowOffsetGap = isDense ? 14 : 20;
-    const baseStartY = isDense ? t4Y + 26 : t4Y + 31;
-    const photoSize = isDense ? 11 : 15;
+  const renderImageColumn = (
+    imageList: Array<{ url: string; dataUrl: string | null }>,
+    originX: number,
+    sideName: "Front" | "Back"
+  ) => {
+    if (imageList.length === 0) return;
+    const isMultiCol = imageList.length > 4;
+    const badgeW = isMultiCol ? 39.5 : 82;
+    const badgeH = isMultiCol ? 13.5 : 17;
+    const photoSize = isMultiCol ? 10.5 : 14;
+    const rowGap = isMultiCol ? 14.5 : 19;
+    const baseStartY = isMultiCol ? t4Y + 26 : t4Y + 31;
 
-    resolvedImages.forEach((item, idx) => {
-      const isEven = idx % 2 === 0;
-      const boxX = isEven ? 18 : 109;
-      const rowOffset = Math.floor(idx / 2) * rowOffsetGap;
-      const startY = baseStartY + rowOffset;
+    imageList.forEach((item, idx) => {
+      const subCol = isMultiCol ? idx % 2 : 0;
+      const subRow = isMultiCol ? Math.floor(idx / 2) : idx;
+      const boxX = originX + subCol * 41.5;
+      const startY = baseStartY + subRow * rowGap;
 
       // Ensure we don't overflow the print box
       if (startY + badgeH <= t4Y + printBoxH + 4) {
@@ -402,11 +416,11 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
         doc.setFillColor(243, 248, 255); // light-blue-50 fill
         doc.setDrawColor(147, 197, 253); // blue-300 border
         doc.setLineWidth(0.3);
-        doc.roundedRect(boxX, startY, 82, badgeH, 1.5, 1.5, "FD");
+        doc.roundedRect(boxX, startY, badgeW, badgeH, 1.5, 1.5, "FD");
 
         // Clickable link annotation over the full badge box
         if (item.url) {
-          doc.link(boxX, startY, 82, badgeH, { url: item.url });
+          doc.link(boxX, startY, badgeW, badgeH, { url: item.url });
         }
 
         // Draw Actual Photo Thumbnail if dataUrl is available
@@ -423,7 +437,7 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
             doc.setLineWidth(0.2);
             doc.rect(photoX, photoY, photoSize, photoSize);
           } catch (e) {
-            console.warn("Could not add photo to PDF:", e);
+            console.warn(`Could not add ${sideName} photo to PDF:`, e);
           }
         } else {
           // Placeholder box
@@ -432,23 +446,23 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
           doc.setFont("helvetica", "bold");
           doc.setFontSize(6);
           doc.setTextColor(59, 130, 246);
-          doc.text(`[PHOTO]`, photoX + 1, photoY + photoSize / 2 + 1);
+          doc.text(`[IMG]`, photoX + 1, photoY + photoSize / 2 + 1);
         }
 
         // Text beside the photo
-        const textX = photoX + photoSize + 2.5;
+        const textX = photoX + photoSize + 2;
 
         // Title line
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(isDense ? 7.5 : 8.5);
+        doc.setFontSize(isMultiCol ? 7 : 8.5);
         doc.setTextColor(29, 78, 216); // blue-700
-        doc.text(`Photo ${idx + 1} ↗`, textX, startY + (isDense ? 4.5 : 6));
+        doc.text(`${sideName} #${idx + 1} ↗`, textX, startY + (isMultiCol ? 4.5 : 6));
 
         // Subtitle / Click hint
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(isDense ? 6 : 6.5);
+        doc.setFontSize(isMultiCol ? 5.5 : 6.5);
         doc.setTextColor(37, 99, 235); // blue-600
-        doc.text(`[Click to open full photo]`, textX, startY + (isDense ? 9 : 12));
+        doc.text(isMultiCol ? `[View full]` : `[Click to open full photo]`, textX, startY + (isMultiCol ? 9 : 11.5));
 
         // Reset draw & text colors for subsequent elements
         doc.setTextColor(0, 0, 0);
@@ -456,7 +470,13 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
         doc.setLineWidth(0.5);
       }
     });
-  }
+  };
+
+  // Render Front images on the Left Column (originX = 18)
+  renderImageColumn(resolvedFront, 18, "Front");
+
+  // Render Back images on the Right Column (originX = 109)
+  renderImageColumn(resolvedBack, 109, "Back");
 
   // 7. Footer: Delivery Date & Name/Sign
   const footerY = 278;

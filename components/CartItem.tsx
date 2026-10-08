@@ -96,33 +96,101 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
         </div>
       )}
 
-      {/* Image thumbnails */}
-      {item.images.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {item.images.map((img, i) => (
-            <a
-              key={i}
-              href={img.url}
-              target="_blank"
-              rel="noreferrer"
-              className="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-85 transition-opacity"
-              title={`View photo ${i + 1}`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={img.thumbnail || img.url}
-                alt={`ref-${i}`}
-                className="w-12 h-12 object-cover"
-                onError={(e) => {
-                  if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
-                    e.currentTarget.src = img.thumbnail;
-                  }
-                }}
-              />
-            </a>
-          ))}
+      {/* Front Image thumbnails */}
+      {item.frontImages && item.frontImages.length > 0 && (
+        <div className="mb-2">
+          <p className="text-[11px] font-semibold text-emerald-800 mb-1">
+            Front Images ({item.frontImages.length}):
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {item.frontImages.map((img, i) => (
+              <a
+                key={i}
+                href={img.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-xl overflow-hidden border border-emerald-200 hover:opacity-85 transition-opacity"
+                title={`Front photo ${i + 1}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.thumbnail || img.url}
+                  alt={`front-${i}`}
+                  className="w-12 h-12 object-cover"
+                  onError={(e) => {
+                    if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
+                      e.currentTarget.src = img.thumbnail;
+                    }
+                  }}
+                />
+              </a>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Back Image thumbnails */}
+      {item.backImages && item.backImages.length > 0 && (
+        <div className="mb-2">
+          <p className="text-[11px] font-semibold text-blue-800 mb-1">
+            Back Images ({item.backImages.length}):
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {item.backImages.map((img, i) => (
+              <a
+                key={i}
+                href={img.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-xl overflow-hidden border border-blue-200 hover:opacity-85 transition-opacity"
+                title={`Back photo ${i + 1}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.thumbnail || img.url}
+                  alt={`back-${i}`}
+                  className="w-12 h-12 object-cover"
+                  onError={(e) => {
+                    if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
+                      e.currentTarget.src = img.thumbnail;
+                    }
+                  }}
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legacy Image thumbnails if neither front nor back was explicitly set */}
+      {(!item.frontImages || item.frontImages.length === 0) &&
+        (!item.backImages || item.backImages.length === 0) &&
+        item.images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {item.images.map((img, i) => (
+              <a
+                key={i}
+                href={img.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-85 transition-opacity"
+                title={`View photo ${i + 1}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.thumbnail || img.url}
+                  alt={`ref-${i}`}
+                  className="w-12 h-12 object-cover"
+                  onError={(e) => {
+                    if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
+                      e.currentTarget.src = img.thumbnail;
+                    }
+                  }}
+                />
+              </a>
+            ))}
+          </div>
+        )}
 
       {/* Actions */}
       <div className="flex gap-2 pt-2 border-t border-gray-100">

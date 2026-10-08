@@ -25,7 +25,9 @@ export interface ProductLineItem {
   productType: string; // "Tshirt" | "Jersey" | "Shorts" | ...
   fields: Record<string, string | boolean>;
   sizeQuantities: SizeQuantity[];
-  images: ProductImage[];
+  images: ProductImage[]; // combined list for backwards compatibility
+  frontImages?: ProductImage[]; // up to 10 front images
+  backImages?: ProductImage[]; // up to 10 back images
 }
 
 export interface OrderHeader {

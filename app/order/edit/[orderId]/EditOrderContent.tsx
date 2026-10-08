@@ -83,12 +83,28 @@ export default function EditOrderContent() {
                 } catch {}
               }
 
+              let frontImages = it.frontImages;
+              if (typeof frontImages === "string") {
+                try {
+                  frontImages = JSON.parse(frontImages);
+                } catch {}
+              }
+
+              let backImages = it.backImages;
+              if (typeof backImages === "string") {
+                try {
+                  backImages = JSON.parse(backImages);
+                } catch {}
+              }
+
               return {
                 lineId: it.lineId || it.id || `item_${i + 1}`,
                 productType: it.productType || "Jersey",
                 fields,
                 sizeQuantities,
                 images,
+                frontImages: Array.isArray(frontImages) ? frontImages : undefined,
+                backImages: Array.isArray(backImages) ? backImages : undefined,
               };
             })
           : [];

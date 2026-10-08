@@ -50,8 +50,11 @@ export default function AddProductContent() {
   const [sizeQuantities, setSizeQuantities] = useState<SizeQuantity[]>(
     existingItem?.sizeQuantities ?? [{ size: "M", quantity: 1 }]
   );
-  const [images, setImages] = useState<ProductImage[]>(
-    existingItem?.images ?? []
+  const [frontImages, setFrontImages] = useState<ProductImage[]>(
+    existingItem?.frontImages ?? existingItem?.images ?? []
+  );
+  const [backImages, setBackImages] = useState<ProductImage[]>(
+    existingItem?.backImages ?? []
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -133,7 +136,9 @@ export default function AddProductContent() {
       productType,
       fields,
       sizeQuantities,
-      images,
+      images: [...frontImages, ...backImages],
+      frontImages,
+      backImages,
     };
 
     if (existingItem) {
@@ -287,9 +292,26 @@ export default function AddProductContent() {
                 );
               })}
 
-              {/* 3. Upload (Optional) Section */}
-              <div className="mt-6">
-                <ImageUpload value={images} onChange={setImages} />
+              {/* 3. Front Image Upload (Max 10) */}
+              <div className="mt-6 pt-5 border-t border-gray-100">
+                <ImageUpload
+                  label="Front Images (Optional)"
+                  sublabel="Upload Front Design / Logo / Sponsor"
+                  maxFiles={10}
+                  value={frontImages}
+                  onChange={setFrontImages}
+                />
+              </div>
+
+              {/* 4. Back Image Upload (Max 10) */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <ImageUpload
+                  label="Back Images (Optional)"
+                  sublabel="Upload Back Design / Player Artwork / Sponsor"
+                  maxFiles={10}
+                  value={backImages}
+                  onChange={setBackImages}
+                />
               </div>
             </div>
           ) : (

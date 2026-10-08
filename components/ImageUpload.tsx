@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ProductImage } from "@/types";
 import { uploadImage, ApiError } from "@/lib/api";
 import { compressImage, createThumbnail } from "@/lib/imageCompress";
 
-const MAX_FILES = 10;
+const DEFAULT_MAX_FILES = 10;
 const MAX_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
 
 interface ImageUploadProps {
+  label?: string;
+  sublabel?: string;
+  maxFiles?: number;
   value: ProductImage[];
   onChange: (images: ProductImage[]) => void;
   error?: string;
@@ -32,7 +35,14 @@ function toProductImages(slots: UploadSlot[]): ProductImage[] {
     }));
 }
 
-export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
+export function ImageUpload({
+  label = "Upload (Optional)",
+  sublabel = "Upload Image",
+  maxFiles = DEFAULT_MAX_FILES,
+  value,
+  onChange,
+  error,
+}: ImageUploadProps) {
   const [slots, setSlots] = useState<UploadSlot[]>(
     value.map((img) => ({
       localUrl: img.thumbnail || img.url,
@@ -44,6 +54,24 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Sync internal slots if external value changes (e.g. edit mode hydration)
+  useEffect(() => {
+    // Only resync if the count or urls differ to avoid tearing
+    const currentUrls = slots.map((s) => s.remoteUrl).filter(Boolean);
+    const incomingUrls = value.map((v) => v.url).filter(Boolean);
+    if (JSON.stringify(currentUrls) !== JSON.stringify(incomingUrls)) {
+      setSlots(
+        value.map((img) => ({
+          localUrl: img.thumbnail || img.url,
+          remoteUrl: img.url,
+          thumbnail: img.thumbnail,
+          uploading: false,
+          file: new File([], "existing"),
+        }))
+      );
+    }
+  }, [value]);
+
   const commitSlots = (next: UploadSlot[]) => {
     setSlots(next);
     onChange(toProductImages(next));
@@ -51,7 +79,7 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
-    const incoming = Array.from(files).slice(0, MAX_FILES - slots.length);
+    const incoming = Array.from(files).slice(0, maxFiles - slots.length);
 
     for (const file of incoming) {
       if (file.size > MAX_SIZE_BYTES) {
@@ -110,18 +138,23 @@ export function ImageUpload({ value, onChange, error }: ImageUploadProps) {
     commitSlots(next);
   };
 
-  const canAddMore = slots.length < MAX_FILES;
+  const canAddMore = slots.length < maxFiles;
 
   return (
     <div className="mb-6">
-      <h3 className="text-base font-semibold text-gray-900 mb-0.5">
-        Upload (Optional)
-      </h3>
-      <p className="text-sm font-medium text-gray-700 mb-0.5">
-        Upload Image
+      <div className="flex items-center justify-between mb-0.5">
+        <h3 className="text-base font-semibold text-gray-900">
+          {label}
+        </h3>
+        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+          {slots.length} / {maxFiles}
+        </span>
+      </div>
+      <p className="text-sm font-medium text-gray-600 mb-0.5">
+        {sublabel}
       </p>
-      <p className="text-xs text-gray-500 mb-3">
-        Add up to 10 photos.
+      <p className="text-xs text-gray-400 mb-3">
+        Add up to {maxFiles} photos.
       </p>
 
       {/* Take photo / Select Image button */}
