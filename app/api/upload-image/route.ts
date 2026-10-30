@@ -1,4 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
+
+/**
+ * Permanent storage: Cloudinary, configured with CLOUDINARY_URL
+ * (cloudinary://<api_key>:<api_secret>@<cloud_name>). Returns null when not configured
+ * or the upload fails, so the other hosts below are tried.
+ */
+async function uploadToCloudinary(buffer: Buffer, mimeType: string, fileName: string): Promise<string | null> {
+  const raw = process.env.CLOUDINARY_URL;
+  if (!raw) return null;
+  try {
+    const cfg = new URL(raw);
+    const cloud = cfg.hostname;
+    const apiKey = decodeURIComponent(cfg.username);
+    const apiSecret = decodeURIComponent(cfg.password);
+    const folder = process.env.CLOUDINARY_FOLDER || "teams-orders";
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    // Signature: sorted params (without file/api_key) + secret, SHA-1
+    const signature = createHash("sha1")
+      .update(`folder=${folder}&timestamp=${timestamp}${apiSecret}`)
+      .digest("hex");
+
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(buffer)], { type: mimeType }), fileName);
+    form.append("api_key", apiKey);
+    form.append("timestamp", timestamp);
+    form.append("folder", folder);
+    form.append("signature", signature);
+
+    // "auto" stores images as images and CSV / Excel / PDF as raw files
+    const resp = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/auto/upload`, {
+      method: "POST",
+      body: form,
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.ok && typeof data?.secure_url === "string") return data.secure_url;
+    console.warn("[Upload] Cloudinary rejected upload:", resp.status, data?.error?.message);
+  } catch (err) {
+    console.warn("[Upload] Cloudinary error:", err);
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +56,13 @@ export async function POST(req: NextRequest) {
     const imageId = `img_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
     const mimeType = file.type || "image/jpeg";
 
-    // 1. Primary: Upload to permanent public CDN (Catbox.moe)
+    // 1. Primary: Cloudinary (permanent, works from Vercel's servers)
+    const cloudinaryUrl = await uploadToCloudinary(buffer, mimeType, file.name || imageId);
+    if (cloudinaryUrl) {
+      return NextResponse.json({ url: cloudinaryUrl });
+    }
+
+    // 2. Catbox.moe (permanent, but it rejects many server IPs)
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const catboxForm = new FormData();
@@ -35,18 +83,17 @@ export async function POST(req: NextRequest) {
         });
         clearTimeout(timeoutId);
 
-        if (catboxResp.ok) {
-          const publicUrl = (await catboxResp.text()).trim();
-          if (publicUrl.startsWith("http")) {
-            return NextResponse.json({ url: publicUrl });
-          }
+        const catboxText = (await catboxResp.text()).trim();
+        if (catboxResp.ok && catboxText.startsWith("http")) {
+          return NextResponse.json({ url: catboxText });
         }
+        console.warn(`[Upload] Catbox attempt ${attempt} rejected:`, catboxResp.status, catboxText.slice(0, 120));
       } catch (catboxErr) {
         console.warn(`[Upload] Catbox attempt ${attempt} error:`, catboxErr);
       }
     }
 
-    // 2. Secondary: Upload to Uguu CDN
+    // 3. Uguu CDN (temporary: files are deleted after about 3 hours)
     try {
       const uguuForm = new FormData();
       const blob = new Blob([buffer], { type: mimeType });
@@ -68,7 +115,7 @@ export async function POST(req: NextRequest) {
       console.warn("[Upload] Uguu error:", uguuErr);
     }
 
-    // 3. Forward to n8n webhook if configured
+    // 4. Forward to n8n webhook if configured
     const n8nBase =
       process.env.N8N_WEBHOOK_URL ||
       process.env.NEXT_PUBLIC_N8N_BASE_URL ||
@@ -92,7 +139,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Safe fallback: Return Base64 data URL (prevents 404 broken images)
+    // 5. Safe fallback: Return Base64 data URL (prevents 404 broken images)
     const base64DataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
     return NextResponse.json({ url: base64DataUrl });
   } catch (err: any) {
