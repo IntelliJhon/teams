@@ -6,6 +6,7 @@ import { CartItem } from "@/components/CartItem";
 import { ProgressBar } from "@/components/ProgressBar";
 import { BottomButton } from "@/components/BottomButton";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function CartPage() {
   const router = useRouter();
@@ -16,9 +17,12 @@ export default function CartPage() {
     setMounted(true);
   }, []);
 
-  // Guard: if no header info, send back to start
+  // Guard: the cart needs the customer details first; say so instead of bouncing back silently
   useEffect(() => {
     if (mounted && !dispatchDate) {
+      toast.info("Enter the customer details and tap Continue first — then you can add products to the cart.", {
+        id: "cart-needs-details",
+      });
       router.replace("/order/new");
     }
   }, [dispatchDate, router, mounted]);
