@@ -268,6 +268,70 @@ export default function ReviewPage() {
                 </div>
               </div>
 
+              {/* Repeat Order files */}
+              {item.repeatOrderFiles && item.repeatOrderFiles.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-amber-800 mb-1.5">
+                    Previous Order Files ({item.repeatOrderFiles.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {item.repeatOrderFiles.map((f, i) => (
+                      <a
+                        key={i}
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 hover:bg-amber-100 max-w-[220px] truncate"
+                        title={f.name || `File ${i + 1}`}
+                      >
+                        📎 {f.name || `File ${i + 1}`}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Back print name list */}
+              {(item.nameList?.length || item.nameListFiles?.length) ? (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-indigo-800 mb-1">
+                    Name List{item.nameList?.length ? ` (${item.nameList.length} players)` : ""}:
+                  </p>
+                  {item.nameList && item.nameList.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                      {item.nameList.slice(0, 24).map((p, i) => (
+                        <span key={i} className="text-xs font-semibold text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-0.5 uppercase">
+                          {p.number ? `#${p.number} ` : ""}
+                          {p.name}
+                          {p.size ? ` · ${p.size}` : ""}
+                        </span>
+                      ))}
+                      {item.nameList.length > 24 && (
+                        <span className="text-[11px] font-semibold text-indigo-700 px-1 py-0.5">
+                          +{item.nameList.length - 24} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {item.nameListFiles && item.nameListFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {item.nameListFiles.map((f, i) => (
+                        <a
+                          key={i}
+                          href={f.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-medium text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-100 max-w-[200px] truncate"
+                          title={f.name || `List file ${i + 1}`}
+                        >
+                          📎 {f.name || `List file ${i + 1}`}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               {/* Front Images */}
               {item.frontImages && item.frontImages.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
@@ -282,12 +346,12 @@ export default function ReviewPage() {
                         target="_blank"
                         rel="noreferrer"
                         className="block rounded-xl overflow-hidden border border-emerald-200 hover:opacity-85 transition-opacity"
-                        title={`Front photo ${i + 1}`}
+                        title={img.position || `Front photo ${i + 1}`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={img.thumbnail || img.url}
-                          alt={`front-${i + 1}`}
+                          alt={img.position || `front-${i + 1}`}
                           className="w-12 h-12 object-cover"
                           onError={(e) => {
                             if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
@@ -295,6 +359,11 @@ export default function ReviewPage() {
                             }
                           }}
                         />
+                        {img.position && (
+                          <span className="block w-12 px-0.5 py-0.5 text-[8px] leading-tight text-center font-semibold text-emerald-900 bg-emerald-50 line-clamp-2">
+                            {img.position}
+                          </span>
+                        )}
                       </a>
                     ))}
                   </div>
@@ -315,12 +384,12 @@ export default function ReviewPage() {
                         target="_blank"
                         rel="noreferrer"
                         className="block rounded-xl overflow-hidden border border-blue-200 hover:opacity-85 transition-opacity"
-                        title={`Back photo ${i + 1}`}
+                        title={img.position || `Back photo ${i + 1}`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={img.thumbnail || img.url}
-                          alt={`back-${i + 1}`}
+                          alt={img.position || `back-${i + 1}`}
                           className="w-12 h-12 object-cover"
                           onError={(e) => {
                             if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
@@ -328,6 +397,11 @@ export default function ReviewPage() {
                             }
                           }}
                         />
+                        {img.position && (
+                          <span className="block w-12 px-0.5 py-0.5 text-[8px] leading-tight text-center font-semibold text-blue-900 bg-blue-50 line-clamp-2">
+                            {img.position}
+                          </span>
+                        )}
                       </a>
                     ))}
                   </div>

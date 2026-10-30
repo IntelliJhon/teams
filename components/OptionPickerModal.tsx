@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { TopBar } from "./TopBar";
+import { COLOUR_SWATCHES } from "@/config/colour-swatches";
 
 export interface OptionItem {
   label: string;
@@ -11,6 +12,8 @@ export interface OptionItem {
   imageUrl?: string;
   icon?: string;
   showThumbnail?: boolean;
+  /** CSS background for a colour swatch thumbnail (colours get one automatically) */
+  swatch?: string;
 }
 
 interface OptionPickerModalProps {
@@ -45,6 +48,7 @@ export function OptionPickerModal({
           description: "Description",
           meta: "Meta Data",
           showThumbnail,
+          swatch: COLOUR_SWATCHES[opt],
         };
       }
       return {
@@ -53,6 +57,7 @@ export function OptionPickerModal({
         meta: opt.meta ?? "Meta Data",
         imageUrl: opt.imageUrl,
         showThumbnail: opt.showThumbnail ?? showThumbnail,
+        swatch: opt.swatch ?? COLOUR_SWATCHES[opt.value],
       };
     });
   }, [options, showThumbnail]);
@@ -225,6 +230,12 @@ export function OptionPickerModal({
                         alt={opt.label}
                         className="w-12 h-12 rounded-xl object-cover border border-gray-200 flex-shrink-0 bg-gray-50 shadow-2xs"
                         loading="lazy"
+                      />
+                    ) : opt.swatch ? (
+                      <div
+                        className="w-12 h-12 rounded-xl border border-gray-300 flex-shrink-0 shadow-2xs"
+                        style={{ background: opt.swatch }}
+                        aria-hidden="true"
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">

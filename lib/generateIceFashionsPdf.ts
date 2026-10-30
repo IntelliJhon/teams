@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
-import { OrderHeader, ProductLineItem } from "@/types";
+import { OrderHeader, ProductImage, ProductLineItem } from "@/types";
+import { buildOrderSummary, groupNamesBySize, PrintSide, ProductSummary } from "@/lib/orderSummary";
 
 interface GeneratePdfProps {
   customer: OrderHeader;
@@ -41,457 +42,367 @@ async function resolveImageDataUrl(img: { url: string; thumbnail?: string }): Pr
   }
 }
 
+// A4 portrait, millimetres
+const PAGE_H = 297;
+const LEFT = 14;
+const RIGHT = 196;
+const WIDTH = RIGHT - LEFT;
+const BOTTOM_LIMIT = 280; // keep room for the page number line
+
+type RGB = [number, number, number];
+const GREY_FILL: RGB = [229, 231, 235];
+const DARK_FILL: RGB = [34, 34, 34];
+
+/**
+ * Builds the ICE FASHIONS order form from what the customer actually selected:
+ * one section per product (specifications, sizes, name list, printing with photos,
+ * attached files), flowing onto as many pages as needed.
+ */
 export async function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): Promise<jsPDF> {
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4",
-  });
-
-  const primaryItem = items[0] || null;
-  const primaryFields = (primaryItem?.fields || {}) as Record<string, string>;
-
-  const shortsOrLowerItems = items.filter(
-    (it) => it.productType === "Shorts" || it.productType === "Lower"
-  );
-
-  const modelName = primaryItem ? primaryItem.productType : "—";
-  const cloth = primaryFields.fabric || primaryFields.cloth || "—";
-  const collar = primaryFields.collarType || primaryFields.collarPadi || "—";
-
-  const sleeveType = (primaryFields.sleeveType || "").toUpperCase();
-  const isHS = sleeveType.includes("HALF") || sleeveType === "H/S" || sleeveType.includes("MEGA");
-  const isFS = sleeveType.includes("FULL") || sleeveType === "F/S";
-
-  const frontPrintYes = primaryFields.frontPrint === "YES" || primaryFields.frontPrint === "Yes";
-  const frontPrintType = primaryFields.printType || "—";
-
-  const backPrintYes = primaryFields.backPrint === "YES" || primaryFields.backPrint === "Yes";
-  const backPrintType = primaryFields.backPrintType || "—";
-
-  const jerseySizeRows = primaryItem ? primaryItem.sizeQuantities : [];
-
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const summary = buildOrderSummary(customer, items);
   const orderNumber = `IF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const currentDate = new Date().toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
 
-  const totalJerseyQty = jerseySizeRows.reduce((sum, r) => sum + r.quantity, 0);
+  // Photos are fetched up front, in parallel
+  const allImages: ProductImage[] = summary.products.flatMap((p) => [
+    ...(p.front?.images ?? []),
+    ...(p.back?.images ?? []),
+  ]);
+  const resolved = new Map<ProductImage, string | null>();
+  await Promise.all(allImages.map(async (img) => resolved.set(img, await resolveImageDataUrl(img))));
 
-  // 1. Header: ICE FASHIONS
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(0, 0, 0);
-  doc.text("ICE FASHIONS", 105, 14, { align: "center" });
+  let y = 0;
 
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "normal");
-  doc.text("Kaniyapuram, Calicut Road, Edappal - 679576 | Mob: 8086863111", 105, 19, { align: "center" });
-
-  // 2. Meta bar: No. & Date
-  const metaY = 25;
-  doc.setLineWidth(0.5);
-  doc.rect(14, metaY, 182, 8);
-  doc.line(105, metaY, 105, metaY + 8);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text(`No: ${orderNumber}`, 18, metaY + 5.5);
-  doc.text(`Date: ${currentDate}`, 109, metaY + 5.5);
-
-  // 3. Table 1: Model, Cloth, Collar, Sleeve (HS / FS)
-  const t1Y = 35;
-  const t1H = 22;
-  doc.rect(14, t1Y, 182, t1H);
-
-  doc.line(14, t1Y + 11, 196, t1Y + 11);
-  doc.line(105, t1Y, 105, t1Y + t1H);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("MODEL:", 18, t1Y + 7);
-  doc.setFont("helvetica", "normal");
-  doc.text(String(modelName), 35, t1Y + 7);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("CLOTH:", 18, t1Y + 18);
-  doc.setFont("helvetica", "normal");
-  doc.text(String(cloth), 35, t1Y + 18);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("COLLAR:", 109, t1Y + 7);
-  doc.setFont("helvetica", "normal");
-  doc.text(String(collar), 126, t1Y + 7);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("SLEEVE:", 109, t1Y + 18);
-
-  doc.text("H/S", 130, t1Y + 18);
-  doc.rect(138, t1Y + 14.5, 4, 4);
-  if (isHS) {
-    doc.setFont("helvetica", "bold");
-    doc.text("X", 139, t1Y + 17.8);
-  }
-
-  doc.setFont("helvetica", "normal");
-  doc.text("F/S", 152, t1Y + 18);
-  doc.rect(160, t1Y + 14.5, 4, 4);
-  if (isFS) {
-    doc.setFont("helvetica", "bold");
-    doc.text("X", 161, t1Y + 17.8);
-  }
-
-  // 4. Table 2: Grid of Sizes & Player Numbers/Names
-  const t2Y = 60;
-  const t2W = 182;
-  const t2H = 46;
-  const t2MidX = 14 + 116;
-
-  doc.rect(14, t2Y, t2W, t2H);
-  doc.line(t2MidX, t2Y, t2MidX, t2Y + t2H);
-
-  const t2RowH = 7.6;
-  for (let r = 1; r < 6; r++) {
-    doc.line(14, t2Y + r * t2RowH, 196, t2Y + r * t2RowH);
-  }
-
-  const sColWidth = 116 / 8;
-  for (let c = 1; c < 8; c++) {
-    doc.line(14 + c * sColWidth, t2Y, 14 + c * sColWidth, t2Y + t2RowH * 5);
-  }
-
-  const standardSizes = [
-    ["18", "20", "22", "24", "26", "28", "30", "32"],
-    ["34", "36", "38", "S", "M", "L", "XL", "XXL"],
-  ];
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-
-  standardSizes[0].forEach((sz, idx) => {
-    doc.text(sz, 14 + idx * sColWidth + sColWidth / 2, t2Y + 5.2, { align: "center" });
-  });
-
-  standardSizes[1].forEach((sz, idx) => {
-    doc.text(sz, 14 + idx * sColWidth + sColWidth / 2, t2Y + t2RowH * 2 + 5.2, { align: "center" });
-  });
-
-  doc.setFont("helvetica", "normal");
-  standardSizes[0].forEach((sz, idx) => {
-    const row = jerseySizeRows.find((r) => r.size.toUpperCase() === sz);
-    if (row && row.quantity > 0) {
-      doc.text(String(row.quantity), 14 + idx * sColWidth + sColWidth / 2, t2Y + t2RowH + 5.2, { align: "center" });
-    }
-  });
-
-  standardSizes[1].forEach((sz, idx) => {
-    const row = jerseySizeRows.find((r) => r.size.toUpperCase() === sz);
-    if (row && row.quantity > 0) {
-      doc.text(String(row.quantity), 14 + idx * sColWidth + sColWidth / 2, t2Y + t2RowH * 3 + 5.2, { align: "center" });
-    }
-  });
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("TOTAL:", 18, t2Y + t2RowH * 4 + 5.2);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text(`${totalJerseyQty} PCS`, 50, t2Y + t2RowH * 4 + 5.2);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("COLLAR TIPPING:", 18, t2Y + t2RowH * 5 + 5.5);
-  doc.setFont("helvetica", "normal");
-  const tippingVal = primaryFields.tipping || primaryFields.collarTipping || "—";
-  doc.text(String(tippingVal), 52, t2Y + t2RowH * 5 + 5.5);
-
-  const formatPlayer = (p: { number?: string; name?: string }) => {
-    const num = (p.number || "").trim();
-    const name = (p.name || "").trim();
-    if (num && name) return `#${num} ${name}`;
-    if (num) return `#${num}`;
-    if (name) return name;
-    return "";
+  const setFont = (style: "normal" | "bold", size: number, color: RGB = [0, 0, 0]) => {
+    doc.setFont("helvetica", style);
+    doc.setFontSize(size);
+    doc.setTextColor(color[0], color[1], color[2]);
   };
 
-  const rightCellRows: { qty: string; text: string }[] = [
-    { qty: "", text: "" },
-    { qty: "", text: "" },
-    { qty: "", text: "" },
-    { qty: "", text: "" },
-    { qty: "", text: "" },
-  ];
+  const cell = (x: number, top: number, w: number, h: number, fill?: RGB) => {
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.25);
+    if (fill) {
+      doc.setFillColor(fill[0], fill[1], fill[2]);
+      doc.rect(x, top, w, h, "FD");
+    } else {
+      doc.rect(x, top, w, h);
+    }
+  };
 
-  if (jerseySizeRows.length === 1) {
-    const sz = jerseySizeRows[0];
-    const playerTags = (sz.players || []).map(formatPlayer).filter((t) => t.length > 0);
-    const maxPerLine = 4;
-    for (let rIdx = 0; rIdx < 5; rIdx++) {
-      const slice = playerTags.slice(rIdx * maxPerLine, (rIdx + 1) * maxPerLine);
-      if (slice.length > 0) {
-        rightCellRows[rIdx] = {
-          qty: rIdx === 0 ? `${sz.size}: ${sz.quantity}` : "",
-          text: slice.join(", "),
-        };
+  const drawFirstHeader = () => {
+    setFont("bold", 22);
+    doc.text("ICE FASHIONS", 105, 14, { align: "center" });
+    setFont("normal", 8.5);
+    doc.text("Kaniyapuram, Calicut Road, Edappal - 679576 | Mob: 8086863111", 105, 19, { align: "center" });
+
+    // No. & Date bar
+    cell(LEFT, 23, WIDTH, 8);
+    doc.line(105, 23, 105, 31);
+    setFont("bold", 9);
+    doc.text(`No: ${orderNumber}`, LEFT + 4, 28.5);
+    doc.text(`Date: ${summary.date}`, 109, 28.5);
+    doc.setFillColor(...DARK_FILL);
+    doc.rect(RIGHT - 30, 23, 30, 8, "F");
+    setFont("bold", 8, [255, 255, 255]);
+    doc.text("ORDER FORM", RIGHT - 15, 28.3, { align: "center" });
+
+    // From
+    setFont("bold", 9);
+    doc.text("FROM:", LEFT, 37);
+    setFont("normal", 9);
+    const from = [
+      summary.customerName || "—",
+      summary.customerPhone ? `(${summary.customerPhone})` : "",
+      summary.customerAddress ? `- ${summary.customerAddress}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const fromLines = doc.splitTextToSize(from, WIDTH - 14) as string[];
+    doc.text(fromLines.slice(0, 2), LEFT + 13, 37);
+    y = 37 + Math.min(fromLines.length, 2) * 4 + 2;
+  };
+
+  const drawContinuedHeader = () => {
+    setFont("bold", 11);
+    doc.text("ICE FASHIONS", LEFT, 12);
+    setFont("normal", 8, [90, 90, 90]);
+    doc.text(`Order ${orderNumber} · ${summary.customerName || ""} (continued)`, RIGHT, 12, { align: "right" });
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.4);
+    doc.line(LEFT, 14.5, RIGHT, 14.5);
+    y = 19;
+  };
+
+  /** Starts a new page when the next block of height h won't fit */
+  const ensure = (h: number) => {
+    if (y + h > BOTTOM_LIMIT) {
+      doc.addPage();
+      drawContinuedHeader();
+    }
+  };
+
+  const sectionLabel = (text: string, x = LEFT, w = WIDTH) => {
+    cell(x, y, w, 5.5, GREY_FILL);
+    setFont("bold", 7.5);
+    doc.text(text.toUpperCase(), x + 2, y + 3.9);
+    y += 5.5;
+  };
+
+  // ── Specifications (left) + sizes (right), row by row ──
+  const drawSpecsAndSizes = (p: ProductSummary) => {
+    const specX = LEFT;
+    const specW = 122;
+    const labelW = 44;
+    const sizeX = LEFT + specW;
+    const sizeW = WIDTH - specW;
+
+    ensure(12);
+    cell(specX, y, specW, 5.5, GREY_FILL);
+    cell(sizeX, y, sizeW, 5.5, GREY_FILL);
+    setFont("bold", 7.5);
+    doc.text("SPECIFICATIONS", specX + 2, y + 3.9);
+    doc.text("SIZE", sizeX + 2, y + 3.9);
+    doc.text("QTY", RIGHT - 2, y + 3.9, { align: "right" });
+    y += 5.5;
+
+    const sizeRows: { left: string; right: string; bold?: boolean }[] = [
+      ...p.sizes.map((s) => ({ left: s.size, right: String(s.quantity) })),
+      { left: "TOTAL", right: `${p.totalQty} PCS`, bold: true },
+    ];
+    const specs = p.specs.length ? p.specs : [{ label: "—", value: "" }];
+    const rows = Math.max(specs.length, sizeRows.length);
+
+    for (let r = 0; r < rows; r++) {
+      const spec = specs[r];
+      setFont("bold", 8);
+      const valueLines = spec ? (doc.splitTextToSize(spec.value, specW - labelW - 4) as string[]) : [];
+      const h = Math.max(5.5, valueLines.length * 3.6 + 2);
+      ensure(h);
+
+      cell(specX, y, labelW, h);
+      cell(specX + labelW, y, specW - labelW, h);
+      if (spec) {
+        setFont("normal", 8, [60, 60, 60]);
+        doc.text(spec.label, specX + 2, y + 3.9);
+        setFont("bold", 8);
+        doc.text(valueLines, specX + labelW + 2, y + 3.9);
       }
-    }
-  } else {
-    jerseySizeRows.slice(0, 5).forEach((sz, idx) => {
-      const playerTags = (sz.players || []).map(formatPlayer).filter((t) => t.length > 0);
-      rightCellRows[idx] = {
-        qty: `${sz.size}: ${sz.quantity}`,
-        text: playerTags.join(", "),
-      };
-    });
-  }
 
-  for (let r = 0; r < 5; r++) {
-    const rowY = t2Y + r * t2RowH;
-    const rowData = rightCellRows[r];
-
-    if (rowData.qty) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.text(rowData.qty, t2MidX + 2, rowY + 5.2);
-    }
-
-    if (rowData.text) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      const textX = rowData.qty ? t2MidX + 16 : t2MidX + 3;
-      const truncated = doc.splitTextToSize(rowData.text, 194 - textX);
-      doc.text(truncated[0] || "", textX, rowY + 5.2);
-    }
-  }
-
-  // Row 6 right side: SLEEVE TIPPING
-  const sleeveTippingVal = primaryFields.sleeveTipping || "—";
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("SLEEVE TIPPING:", t2MidX + 2, t2Y + t2RowH * 5 + 5.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(String(sleeveTippingVal), t2MidX + 34, t2Y + t2RowH * 5 + 5.5);
-
-  // 5. Table 3: Shorts & Special Remarks
-  const t3Y = 108;
-  const t3H = 43;
-  doc.rect(14, t3Y, 182, t3H);
-
-  doc.line(14, t3Y + 7, 196, t3Y + 7);
-  doc.line(14, t3Y + 14, 196, t3Y + 14);
-  doc.line(14, t3Y + 21, 196, t3Y + 21);
-
-  doc.line(40, t3Y, 40, t3Y + 21);
-  const s2ColW = (196 - 40) / 9;
-  for (let c = 1; c < 9; c++) {
-    doc.line(40 + c * s2ColW, t3Y, 40 + c * s2ColW, t3Y + 21);
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("SHORTS", 27, t3Y + 5, { align: "center" });
-
-  const shortsSizes = ["22", "24", "26", "28", "30", "32", "34", "36", "38"];
-  shortsSizes.forEach((sz, idx) => {
-    doc.text(sz, 40 + idx * s2ColW + s2ColW / 2, t3Y + 5, { align: "center" });
-  });
-
-  const shortsItem = shortsOrLowerItems.find((it) => it.productType === "Shorts") || null;
-  const lowerItem = shortsOrLowerItems.find((it) => it.productType === "Lower") || null;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("QTY", 27, t3Y + 12, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  if (shortsItem) {
-    shortsSizes.forEach((sz, idx) => {
-      const match = shortsItem.sizeQuantities.find((r) => r.size === sz);
-      if (match && match.quantity > 0) {
-        doc.text(String(match.quantity), 40 + idx * s2ColW + s2ColW / 2, t3Y + 12, { align: "center" });
+      cell(sizeX, y, sizeW, h, sizeRows[r]?.bold ? [243, 244, 246] : undefined);
+      const sr = sizeRows[r];
+      if (sr) {
+        setFont(sr.bold ? "bold" : "normal", 8);
+        doc.text(sr.left, sizeX + 2, y + 3.9);
+        setFont("bold", 8);
+        doc.text(sr.right, RIGHT - 2, y + 3.9, { align: "right" });
       }
-    });
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.text("LOWER", 27, t3Y + 19, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  if (lowerItem) {
-    shortsSizes.forEach((sz, idx) => {
-      const match = lowerItem.sizeQuantities.find((r) => r.size === sz);
-      if (match && match.quantity > 0) {
-        doc.text(String(match.quantity), 40 + idx * s2ColW + s2ColW / 2, t3Y + 19, { align: "center" });
-      }
-    });
-  }
-
-  // Table 3 bottom: Remarks
-  const remarksY = t3Y + 24;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("SPECIAL NOTES / REMARKS:", 18, remarksY + 3);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  const remarksText = customer.remarks || primaryFields.remarks || primaryFields.specialInstructions || "None";
-  const wrappedRemarks = doc.splitTextToSize(String(remarksText), 174);
-  doc.text(wrappedRemarks.slice(0, 3), 18, remarksY + 8);
-
-  // 6. Table 4: Jersey Printing Details with Real Photos & Clickable Links
-  const t4Y = 153;
-  const printBoxH = 120;
-  doc.rect(14, t4Y, 182, printBoxH);
-
-  doc.line(14, t4Y + 7, 196, t4Y + 7);
-  doc.line(105, t4Y, 105, t4Y + printBoxH);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text("JERSEY PRINTING DETAILS", 105, t4Y + 5, { align: "center" });
-
-  // Front Print Box Header
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text(`Front Print: ${frontPrintYes ? "YES" : "NO"}`, 18, t4Y + 13);
-  if (frontPrintYes) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(`Print Type: ${frontPrintType}`, 18, t4Y + 18.5);
-    if (primaryFields.printTypeOtherText) {
-      doc.text(`Desc: ${primaryFields.printTypeOtherText}`, 18, t4Y + 24);
+      y += h;
     }
-  }
+  };
 
-  // Back Print Box Header
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text(`Back Print: ${backPrintYes ? "YES" : "NO"}`, 109, t4Y + 13);
-  if (backPrintYes) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(`Print Type: ${backPrintType}`, 109, t4Y + 18.5);
-  }
+  // ── Name list grouped by size, three players per line; headings repeat on every page ──
+  const drawNameList = (p: ProductSummary) => {
+    if (p.nameList.length === 0) return;
+    const title = `Name list · #${p.index} ${p.productType} (${p.nameList.length} players)`;
+    ensure(16);
+    sectionLabel(title);
+    const sizeColW = 20;
+    const perLine = 3;
+    const colW = (WIDTH - sizeColW) / perLine;
+    const rowH = 5;
 
-  // ── Render Real Photos & Clickable Badges (Front up to 10, Back up to 10) ──
-  let rawFront = items.flatMap((it) => it.frontImages || []).filter((img) => Boolean(img?.url || img?.thumbnail));
-  let rawBack = items.flatMap((it) => it.backImages || []).filter((img) => Boolean(img?.url || img?.thumbnail));
-
-  // Legacy fallback: if front/back not explicitly set, distribute general images
-  if (rawFront.length === 0 && rawBack.length === 0) {
-    const legacyImages = items.flatMap((it) => it.images || []).filter((img) => Boolean(img?.url || img?.thumbnail));
-    legacyImages.forEach((img, idx) => {
-      if (idx % 2 === 0) rawFront.push(img);
-      else rawBack.push(img);
-    });
-  }
-
-  // Pre-resolve base64 data URLs in parallel so real photos render inside the PDF
-  const [resolvedFront, resolvedBack] = await Promise.all([
-    Promise.all(rawFront.map(async (img) => ({ url: img.url, dataUrl: await resolveImageDataUrl(img) }))),
-    Promise.all(rawBack.map(async (img) => ({ url: img.url, dataUrl: await resolveImageDataUrl(img) }))),
-  ]);
-
-  const renderImageColumn = (
-    imageList: Array<{ url: string; dataUrl: string | null }>,
-    originX: number,
-    sideName: "Front" | "Back"
-  ) => {
-    if (imageList.length === 0) return;
-    const isMultiCol = imageList.length > 4;
-    const badgeW = isMultiCol ? 39.5 : 82;
-    const badgeH = isMultiCol ? 13.5 : 17;
-    const photoSize = isMultiCol ? 10.5 : 14;
-    const rowGap = isMultiCol ? 14.5 : 19;
-    const baseStartY = isMultiCol ? t4Y + 26 : t4Y + 31;
-
-    imageList.forEach((item, idx) => {
-      const subCol = isMultiCol ? idx % 2 : 0;
-      const subRow = isMultiCol ? Math.floor(idx / 2) : idx;
-      const boxX = originX + subCol * 41.5;
-      const startY = baseStartY + subRow * rowGap;
-
-      // Ensure we don't overflow the print box
-      if (startY + badgeH <= t4Y + printBoxH + 4) {
-        // Draw blue container badge
-        doc.setFillColor(243, 248, 255); // light-blue-50 fill
-        doc.setDrawColor(147, 197, 253); // blue-300 border
-        doc.setLineWidth(0.3);
-        doc.roundedRect(boxX, startY, badgeW, badgeH, 1.5, 1.5, "FD");
-
-        // Clickable link annotation over the full badge box
-        if (item.url) {
-          doc.link(boxX, startY, badgeW, badgeH, { url: item.url });
+    for (const g of groupNamesBySize(p.nameList)) {
+      for (let i = 0; i < g.players.length; i += perLine) {
+        const pageBefore = doc.getNumberOfPages();
+        ensure(rowH);
+        const newPage = doc.getNumberOfPages() !== pageBefore;
+        if (newPage) sectionLabel(`${title} — continued`);
+        const showSize = i === 0 || newPage;
+        cell(LEFT, y, sizeColW, rowH);
+        cell(LEFT + sizeColW, y, WIDTH - sizeColW, rowH);
+        if (showSize) {
+          setFont("bold", 8);
+          doc.text(i === 0 ? `${g.size}  × ${g.players.length}` : `${g.size} (cont.)`, LEFT + 2, y + 3.5);
         }
+        g.players.slice(i, i + perLine).forEach((pl, k) => {
+          const x = LEFT + sizeColW + k * colW + 2;
+          setFont("bold", 8);
+          doc.text(pl.number || "–", x, y + 3.5);
+          setFont("normal", 8);
+          const name = doc.splitTextToSize((pl.name || "—").toUpperCase(), colW - 11) as string[];
+          doc.text(name[0] || "", x + 8, y + 3.5);
+        });
+        y += rowH;
+      }
+    }
+  };
 
-        // Draw Actual Photo Thumbnail if dataUrl is available
-        const photoX = boxX + 1.2;
-        const photoY = startY + (badgeH - photoSize) / 2;
+  // ── Printing: selected sides only, photos with their position, each a link ──
+  const drawPrinting = (p: ProductSummary) => {
+    const sides = [p.front, p.back].filter(Boolean) as PrintSide[];
+    if (sides.length === 0) return;
 
-        if (item.dataUrl) {
+    const colW = WIDTH / sides.length;
+    const perRow = sides.length === 1 ? 4 : 2;
+    const badgeW = (colW - 4 - (perRow - 1) * 2) / perRow;
+    const badgeH = 14;
+    const rowsNeeded = Math.max(...sides.map((s) => Math.ceil(s.images.length / perRow)));
+    const blockH = 11 + rowsNeeded * (badgeH + 2) + (rowsNeeded ? 1 : 0);
+    ensure(Math.min(blockH, BOTTOM_LIMIT - 25));
+
+    const top = y;
+    sides.forEach((side, si) => {
+      const x0 = LEFT + si * colW;
+      cell(x0, top, colW, blockH);
+      setFont("bold", 8);
+      doc.text(`${side.side.toUpperCase()} PRINT: YES`, x0 + 2, top + 4.5);
+      if (side.type) {
+        setFont("normal", 8);
+        const t = doc.splitTextToSize(`Type: ${side.type}`, colW - 4) as string[];
+        doc.text(t[0] || "", x0 + 2, top + 8.5);
+      }
+
+      side.images.forEach((img, idx) => {
+        const bx = x0 + 2 + (idx % perRow) * (badgeW + 2);
+        const by = top + 11 + Math.floor(idx / perRow) * (badgeH + 2);
+        doc.setFillColor(243, 248, 255);
+        doc.setDrawColor(147, 197, 253);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(bx, by, badgeW, badgeH, 1.2, 1.2, "FD");
+        if (img.url) doc.link(bx, by, badgeW, badgeH, { url: img.url });
+
+        const photo = badgeH - 2.4;
+        const data = resolved.get(img);
+        if (data) {
           try {
-            const format = (item.dataUrl.includes("image/png") ? "PNG" : "JPEG") as "PNG" | "JPEG";
-            doc.addImage(item.dataUrl, format, photoX, photoY, photoSize, photoSize);
-
-            // Draw a clean border around the embedded photo
-            doc.setDrawColor(191, 219, 254);
-            doc.setLineWidth(0.2);
-            doc.rect(photoX, photoY, photoSize, photoSize);
+            const format = (data.includes("image/png") ? "PNG" : "JPEG") as "PNG" | "JPEG";
+            doc.addImage(data, format, bx + 1.2, by + 1.2, photo, photo);
           } catch (e) {
-            console.warn(`Could not add ${sideName} photo to PDF:`, e);
+            console.warn(`Could not add ${side.side} photo to PDF:`, e);
           }
         } else {
-          // Placeholder box
           doc.setFillColor(224, 231, 255);
-          doc.rect(photoX, photoY, photoSize, photoSize, "F");
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(6);
-          doc.setTextColor(59, 130, 246);
-          doc.text(`[IMG]`, photoX + 1, photoY + photoSize / 2 + 1);
+          doc.rect(bx + 1.2, by + 1.2, photo, photo, "F");
         }
 
-        // Text beside the photo
-        const textX = photoX + photoSize + 2;
-
-        // Title line
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(isMultiCol ? 7 : 8.5);
-        doc.setTextColor(29, 78, 216); // blue-700
-        doc.text(`${sideName} #${idx + 1} ↗`, textX, startY + (isMultiCol ? 4.5 : 6));
-
-        // Subtitle / Click hint
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(isMultiCol ? 5.5 : 6.5);
-        doc.setTextColor(37, 99, 235); // blue-600
-        doc.text(isMultiCol ? `[View full]` : `[Click to open full photo]`, textX, startY + (isMultiCol ? 9 : 11.5));
-
-        // Reset draw & text colors for subsequent elements
-        doc.setTextColor(0, 0, 0);
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
-      }
+        const tx = bx + photo + 2.6;
+        const label = doc.splitTextToSize(img.position || `${side.side} #${idx + 1}`, badgeW - photo - 3.5) as string[];
+        setFont("bold", 7, [29, 78, 216]);
+        doc.text(label.slice(0, 2), tx, by + 4.6);
+        setFont("normal", 6, [37, 99, 235]);
+        doc.text("Open photo", tx, by + badgeH - 2);
+      });
+      doc.setTextColor(0, 0, 0);
+      doc.setDrawColor(0, 0, 0);
     });
+    y = top + blockH;
   };
 
-  // Render Front images on the Left Column (originX = 18)
-  renderImageColumn(resolvedFront, 18, "Front");
+  const drawFiles = (p: ProductSummary) => {
+    if (p.files.length === 0) return;
+    const h = 4 + p.files.length * 4.5;
+    ensure(h);
+    cell(LEFT, y, WIDTH, h);
+    p.files.forEach((f, i) => {
+      const ty = y + 4 + i * 4.5;
+      setFont("bold", 7.5);
+      doc.text(`${f.label}:`, LEFT + 2, ty);
+      setFont("normal", 7.5, [29, 78, 216]);
+      doc.textWithLink(f.name, LEFT + 30, ty, { url: f.url });
+    });
+    doc.setTextColor(0, 0, 0);
+    y += h;
+  };
 
-  // Render Back images on the Right Column (originX = 109)
-  renderImageColumn(resolvedBack, 109, "Back");
+  // ── Build the document ──
+  drawFirstHeader();
 
-  // 7. Footer: Delivery Date & Name/Sign
-  const footerY = 278;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.text("Delivery Date", 14, footerY);
-  doc.setFont("helvetica", "normal");
-  doc.text(customer.dispatchDate || "—", 40, footerY);
-  doc.line(38, footerY + 1, 95, footerY + 1);
+  if (summary.products.length === 0) {
+    ensure(10);
+    cell(LEFT, y, WIDTH, 10);
+    setFont("normal", 9, [110, 110, 110]);
+    doc.text("No products in this order.", 105, y + 6, { align: "center" });
+    y += 14;
+  }
 
-  doc.setFont("helvetica", "bold");
-  doc.text("NAME/SIGN", 115, footerY);
-  doc.setFont("helvetica", "normal");
-  doc.text(customer.customerName || "—", 140, footerY);
-  doc.line(138, footerY + 1, 196, footerY + 1);
+  for (const p of summary.products) {
+    // Keep the product heading together with its spec table where possible
+    const specRows = Math.max(p.specs.length, p.sizes.length + 1);
+    ensure(Math.min(12.5 + specRows * 5.8, 120));
+    doc.setFillColor(...DARK_FILL);
+    doc.rect(LEFT, y, WIDTH, 7, "F");
+    setFont("bold", 10, [255, 255, 255]);
+    doc.text(`#${p.index}  ${p.productType.toUpperCase()}`, LEFT + 2.5, y + 4.9);
+    doc.text(`${p.totalQty} PCS`, RIGHT - 2.5, y + 4.9, { align: "right" });
+    y += 7;
+
+    drawSpecsAndSizes(p);
+    drawPrinting(p);
+    drawFiles(p);
+    if (p.nameList.length > 0) {
+      ensure(6);
+      cell(LEFT, y, WIDTH, 6, [238, 242, 255]);
+      setFont("bold", 8, [55, 48, 163]);
+      doc.text(`Name list: ${p.nameList.length} players — see "Name list · #${p.index}" after the signature`, LEFT + 2, y + 4.1);
+      doc.setTextColor(0, 0, 0);
+      y += 6;
+    }
+    y += 5;
+  }
+
+  // Remarks + order total
+  setFont("normal", 8);
+  const remarkLines = doc.splitTextToSize(summary.remarks || "None", 118) as string[];
+  const remarksH = Math.max(16, 9 + remarkLines.length * 3.6);
+  ensure(remarksH + 14);
+  cell(LEFT, y, 124, remarksH);
+  cell(LEFT + 124, y, WIDTH - 124, remarksH, [243, 244, 246]);
+  setFont("bold", 8.5);
+  doc.text("SPECIAL NOTES / REMARKS:", LEFT + 2, y + 5);
+  setFont("normal", 8);
+  doc.text(remarkLines, LEFT + 2, y + 9.5);
+  setFont("bold", 7.5, [80, 80, 80]);
+  doc.text("TOTAL QUANTITY", LEFT + 124 + (WIDTH - 124) / 2, y + remarksH / 2 - 1.5, { align: "center" });
+  setFont("bold", 13);
+  doc.text(`${summary.grandTotal} PCS`, LEFT + 124 + (WIDTH - 124) / 2, y + remarksH / 2 + 4.5, { align: "center" });
+  y += remarksH + 10;
+
+  // Footer: Delivery Date & Name/Sign
+  setFont("bold", 9.5);
+  doc.text("Delivery Date", LEFT, y);
+  setFont("normal", 9.5);
+  doc.text(summary.deliveryDate || "—", 40, y);
+  doc.setLineWidth(0.4);
+  doc.line(38, y + 1, 95, y + 1);
+  setFont("bold", 9.5);
+  doc.text("NAME/SIGN", 115, y);
+  setFont("normal", 9.5);
+  doc.text(summary.customerName || "—", 140, y);
+  doc.line(138, y + 1, RIGHT, y + 1);
+  y += 8;
+
+  // Name lists come last so the order details stay together on the first page(s)
+  const withNames = summary.products.filter((p) => p.nameList.length > 0);
+  withNames.forEach((p, i) => {
+    if (i === 0) {
+      doc.addPage();
+      drawContinuedHeader();
+    } else {
+      y += 4;
+    }
+    drawNameList(p);
+  });
+
+  // Page numbers on every page
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    setFont("normal", 7.5, [120, 120, 120]);
+    doc.text(`Page ${i} of ${pages}`, RIGHT, PAGE_H - 8, { align: "right" });
+    doc.text(`ICE FASHIONS · ${orderNumber}`, LEFT, PAGE_H - 8);
+  }
+  doc.setTextColor(0, 0, 0);
 
   return doc;
 }

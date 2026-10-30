@@ -146,6 +146,7 @@ export const FABRIC_OPTIONS: string[] = [
 
 export const COLOUR_OPTIONS: string[] = [
   "NA",
+  "Subli",
   "Black",
   "White",
   "Navy-Blue",
@@ -177,14 +178,21 @@ export const COLOUR_OPTIONS: string[] = [
 export const PRODUCTION_TYPE_OPTIONS: string[] = [
   "Cut & Sew",
   "Sublimation",
+  "Front Sublimation",
   "Screen Printing",
   "Ready Made",
+  "Repeat Order",
 ];
+
+// Production type that requires the previous order's files to be uploaded
+export const REPEAT_ORDER_PRODUCTION_TYPE = "Repeat Order";
 
 export const SLEEVE_TYPE_OPTIONS: string[] = [
   "FULL SLEEVE",
   "HALF SLEEVE",
   "MEGA SLEEVE",
+  "5 SLEEVE",
+  "SLEEVELESS",
 ];
 
 export const COLLAR_PADI_OPTIONS: OptionItem[] = [
@@ -194,10 +202,13 @@ export const COLLAR_PADI_OPTIONS: OptionItem[] = [
   { label: "NA", value: "NA", description: "Description", meta: "Meta Data" },
 ];
 
+export const COLLAR_TIPPING_LINE_OPTIONS: string[] = ["Single Line", "Double Line"];
+
 export const BUTTON_OPTIONS: string[] = [
   "No Button",
   "One Button",
   "Two Button",
+  "Three Button",
   "ZIP",
 ];
 
@@ -212,16 +223,58 @@ export const PRINT_TYPE_OPTIONS: string[] = [
   "Sublimation-Applique",
 ];
 
-export const COLLAR_TYPE_OPTIONS: OptionItem[] = Array.from({ length: 10 }).map((_, i) => ({
-  label: `Collar${i + 1}`,
-  value: `Collar${i + 1}`,
-  description: "Description",
-  meta: "Meta Data",
-  showThumbnail: true,
-}));
+// Collar value that asks for the ready-made collar's colour
+export const READY_MADE_COLLAR = "Ready Made";
+
+export const COLLAR_TYPE_OPTIONS: OptionItem[] = [
+  ...Array.from({ length: 10 }).map((_, i) => ({
+    label: `Collar${i + 1}`,
+    value: `Collar${i + 1}`,
+    description: "Description",
+    meta: "Meta Data",
+    imageUrl: `/collars/collar${i + 1}.png`,
+    showThumbnail: true,
+  })),
+  {
+    label: READY_MADE_COLLAR,
+    value: READY_MADE_COLLAR,
+    description: "Ready-made collar",
+    meta: "Meta Data",
+    showThumbnail: true,
+  },
+];
+
+// Where each front image is printed; "Others" lets the customer type their own placement
+export const OTHER_POSITION = "Others";
+export const FRONT_IMAGE_POSITIONS: string[] = [
+  "Left Chest Logo",
+  "Right Chest Logo",
+  "Central Matter",
+  "Right Hand Logo",
+  "Left Hand Logo",
+  OTHER_POSITION,
+];
+
+// Where each back image is printed (player names/numbers go in the separate Name List)
+export const BACK_IMAGE_POSITIONS: string[] = [
+  "Neck Logo",
+  "Sponsor Logo",
+  OTHER_POSITION,
+];
 
 export const YES_NO: string[] = ["Yes", "No"];
+export const POCKET_OPTIONS: string[] = ["Yes", "No", "Inner Pocket"];
 export const PRINT_YES_NO: string[] = ["YES", "NO"];
+
+/** True when a field's conditionalOn rule is met (no rule = always shown) */
+export function isConditionMet(
+  rule: FieldDef["conditionalOn"],
+  values: Record<string, string | boolean | undefined>
+): boolean {
+  if (!rule) return true;
+  const watched = values[rule.field];
+  return rule.value === undefined ? Boolean(watched) : watched === rule.value;
+}
 
 // ─────────────────────────────────────────────
 //  Product schemas
@@ -261,7 +314,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
     {
@@ -269,7 +323,25 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "COLLAR TIPPING",
       type: "select",
       options: YES_NO,
+      display: "chips",
       required: true,
+    },
+    {
+      id: "collarTippingLine",
+      label: "Select Collar Tipping Line",
+      type: "select",
+      options: COLLAR_TIPPING_LINE_OPTIONS,
+      required: true,
+      display: "chips",
+      conditionalOn: { field: "collarTipping", value: "Yes" },
+    },
+    {
+      id: "collarTippingColour",
+      label: "Select Collar Tipping Colour",
+      type: "select",
+      options: COLOUR_OPTIONS,
+      required: true,
+      conditionalOn: { field: "collarTipping", value: "Yes" },
     },
     {
       id: "collarPadi",
@@ -279,10 +351,50 @@ export const productSchemas: Record<string, FieldDef[]> = {
       required: true,
     },
     {
+      id: "innerPadiColour",
+      label: "Select Inner Padi Colour",
+      type: "select",
+      options: COLOUR_OPTIONS,
+      required: true,
+      conditionalOn: { field: "collarPadi", value: "Innerpadi" },
+    },
+    {
+      id: "collarType",
+      label: "Select Collar Type",
+      type: "select",
+      options: COLLAR_TYPE_OPTIONS.map((c) => c.value),
+      required: true,
+    },
+    {
+      id: "collarColour",
+      label: "Select Collar Colour",
+      type: "select",
+      options: COLOUR_OPTIONS,
+      required: true,
+      conditionalOn: { field: "collarType" },
+    },
+    {
+      id: "rib",
+      label: "Rib",
+      type: "select",
+      options: YES_NO,
+      display: "chips",
+      required: true,
+    },
+    {
+      id: "ribColour",
+      label: "Select Rib Colour",
+      type: "select",
+      options: COLOUR_OPTIONS,
+      required: true,
+      conditionalOn: { field: "rib", value: "Yes" },
+    },
+    {
       id: "handCuff",
       label: "HAND CUFF",
       type: "select",
       options: YES_NO,
+      display: "chips",
       required: true,
     },
     {
@@ -297,6 +409,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
     {
@@ -319,6 +432,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Back Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
     {
@@ -361,10 +475,42 @@ export const productSchemas: Record<string, FieldDef[]> = {
       required: true,
     },
     {
+      id: "collarType",
+      label: "Select Collar Type",
+      type: "select",
+      options: COLLAR_TYPE_OPTIONS.map((c) => c.value),
+      required: true,
+    },
+    {
+      id: "collarColour",
+      label: "Select Collar Colour",
+      type: "select",
+      options: COLOUR_OPTIONS,
+      required: true,
+      conditionalOn: { field: "collarType" },
+    },
+    {
+      id: "rib",
+      label: "Rib",
+      type: "select",
+      options: YES_NO,
+      display: "chips",
+      required: true,
+    },
+    {
+      id: "ribColour",
+      label: "Select Rib Colour",
+      type: "select",
+      options: COLOUR_OPTIONS,
+      required: true,
+      conditionalOn: { field: "rib", value: "Yes" },
+    },
+    {
       id: "frontPrint",
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
     {
@@ -379,6 +525,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Back Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
     {
@@ -387,20 +534,6 @@ export const productSchemas: Record<string, FieldDef[]> = {
       type: "select",
       options: PRINT_TYPE_OPTIONS,
       conditionalOn: { field: "backPrint", value: "YES" },
-    },
-    {
-      id: "collarType",
-      label: "Select Collar Type",
-      type: "select",
-      options: COLLAR_TYPE_OPTIONS.map((c) => c.value),
-      required: true,
-    },
-    {
-      id: "rib",
-      label: "Rib",
-      type: "select",
-      options: YES_NO,
-      required: true,
     },
   ],
 
@@ -431,7 +564,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
     {
@@ -439,6 +573,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -470,7 +605,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
     {
@@ -478,6 +614,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -503,6 +640,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -541,7 +679,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
     {
@@ -556,6 +695,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -587,7 +727,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
   ],
@@ -612,7 +753,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
   ],
@@ -637,7 +779,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
     {
@@ -645,6 +788,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -676,7 +820,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
   ],
@@ -709,6 +854,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -733,7 +879,8 @@ export const productSchemas: Record<string, FieldDef[]> = {
       id: "pocket",
       label: "POCKET",
       type: "select",
-      options: YES_NO,
+      options: POCKET_OPTIONS,
+      display: "chips",
       required: true,
     },
   ],
@@ -759,6 +906,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -784,6 +932,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],
@@ -809,6 +958,7 @@ export const productSchemas: Record<string, FieldDef[]> = {
       label: "Front Print",
       type: "select",
       options: PRINT_YES_NO,
+      display: "chips",
       required: true,
     },
   ],

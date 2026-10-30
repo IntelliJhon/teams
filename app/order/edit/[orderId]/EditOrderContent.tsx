@@ -97,6 +97,27 @@ export default function EditOrderContent() {
                 } catch {}
               }
 
+              let repeatOrderFiles = it.repeatOrderFiles;
+              if (typeof repeatOrderFiles === "string") {
+                try {
+                  repeatOrderFiles = JSON.parse(repeatOrderFiles);
+                } catch {}
+              }
+
+              let nameList = it.nameList;
+              if (typeof nameList === "string") {
+                try {
+                  nameList = JSON.parse(nameList);
+                } catch {}
+              }
+
+              let nameListFiles = it.nameListFiles;
+              if (typeof nameListFiles === "string") {
+                try {
+                  nameListFiles = JSON.parse(nameListFiles);
+                } catch {}
+              }
+
               return {
                 lineId: it.lineId || it.id || `item_${i + 1}`,
                 productType: it.productType || "Jersey",
@@ -105,6 +126,9 @@ export default function EditOrderContent() {
                 images,
                 frontImages: Array.isArray(frontImages) ? frontImages : undefined,
                 backImages: Array.isArray(backImages) ? backImages : undefined,
+                repeatOrderFiles: Array.isArray(repeatOrderFiles) ? repeatOrderFiles : undefined,
+                nameList: Array.isArray(nameList) ? nameList : undefined,
+                nameListFiles: Array.isArray(nameListFiles) ? nameListFiles : undefined,
               };
             })
           : [];

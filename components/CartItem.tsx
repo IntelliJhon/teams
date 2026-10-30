@@ -96,6 +96,70 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
         </div>
       )}
 
+      {/* Repeat Order files */}
+      {item.repeatOrderFiles && item.repeatOrderFiles.length > 0 && (
+        <div className="mb-2">
+          <p className="text-[11px] font-semibold text-amber-800 mb-1">
+            Previous Order Files ({item.repeatOrderFiles.length}):
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {item.repeatOrderFiles.map((f, i) => (
+              <a
+                key={i}
+                href={f.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 hover:bg-amber-100 max-w-[180px] truncate"
+                title={f.name || `File ${i + 1}`}
+              >
+                📎 {f.name || `File ${i + 1}`}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Back print name list */}
+      {(item.nameList?.length || item.nameListFiles?.length) ? (
+        <div className="mb-2">
+          <p className="text-[11px] font-semibold text-indigo-800 mb-1">
+            Name List{item.nameList?.length ? ` (${item.nameList.length} players)` : ""}:
+          </p>
+          {item.nameList && item.nameList.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {item.nameList.slice(0, 24).map((p, i) => (
+                <span key={i} className="text-[11px] font-semibold text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-0.5 uppercase">
+                  {p.number ? `#${p.number} ` : ""}
+                  {p.name}
+                  {p.size ? ` · ${p.size}` : ""}
+                </span>
+              ))}
+              {item.nameList.length > 24 && (
+                <span className="text-[11px] font-semibold text-indigo-700 px-1 py-0.5">
+                  +{item.nameList.length - 24} more
+                </span>
+              )}
+            </div>
+          )}
+          {item.nameListFiles && item.nameListFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {item.nameListFiles.map((f, i) => (
+                <a
+                  key={i}
+                  href={f.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] font-medium text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1 hover:bg-indigo-100 max-w-[200px] truncate"
+                  title={f.name || `List file ${i + 1}`}
+                >
+                  📎 {f.name || `List file ${i + 1}`}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {/* Front Image thumbnails */}
       {item.frontImages && item.frontImages.length > 0 && (
         <div className="mb-2">
@@ -110,12 +174,12 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-xl overflow-hidden border border-emerald-200 hover:opacity-85 transition-opacity"
-                title={`Front photo ${i + 1}`}
+                title={img.position || `Front photo ${i + 1}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img.thumbnail || img.url}
-                  alt={`front-${i}`}
+                  alt={img.position || `front-${i}`}
                   className="w-12 h-12 object-cover"
                   onError={(e) => {
                     if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
@@ -123,6 +187,11 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
                     }
                   }}
                 />
+                {img.position && (
+                  <span className="block w-12 px-0.5 py-0.5 text-[8px] leading-tight text-center font-semibold text-emerald-900 bg-emerald-50 line-clamp-2">
+                    {img.position}
+                  </span>
+                )}
               </a>
             ))}
           </div>
@@ -143,12 +212,12 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-xl overflow-hidden border border-blue-200 hover:opacity-85 transition-opacity"
-                title={`Back photo ${i + 1}`}
+                title={img.position || `Back photo ${i + 1}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img.thumbnail || img.url}
-                  alt={`back-${i}`}
+                  alt={img.position || `back-${i}`}
                   className="w-12 h-12 object-cover"
                   onError={(e) => {
                     if (img.thumbnail && e.currentTarget.src !== img.thumbnail) {
@@ -156,6 +225,11 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
                     }
                   }}
                 />
+                {img.position && (
+                  <span className="block w-12 px-0.5 py-0.5 text-[8px] leading-tight text-center font-semibold text-blue-900 bg-blue-50 line-clamp-2">
+                    {img.position}
+                  </span>
+                )}
               </a>
             ))}
           </div>

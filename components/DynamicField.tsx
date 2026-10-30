@@ -1,5 +1,7 @@
 "use client";
 
+import { isConditionMet } from "@/config/product-schemas";
+
 import { FieldDef } from "@/types";
 
 interface DynamicFieldProps {
@@ -25,10 +27,7 @@ export function DynamicField({
   error,
 }: DynamicFieldProps) {
   // ── Conditional visibility ────────────────
-  if (field.conditionalOn) {
-    const watchedVal = allValues[field.conditionalOn.field];
-    if (watchedVal !== field.conditionalOn.value) return null;
-  }
+  if (!isConditionMet(field.conditionalOn, allValues)) return null;
 
   const labelEl = (
     <label className="block text-sm font-semibold text-gray-700 mb-2">

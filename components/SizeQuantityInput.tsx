@@ -10,18 +10,65 @@ interface SizeQuantityInputProps {
   onChange: (rows: SizeQuantity[]) => void;
   isJersey?: boolean;
   error?: string;
+  /**
+   * Back print master name list (number · name · size). When given, it is the single
+   * source of player names: size rows can be filled from it and each row's
+   * player names are that size's slice of the list.
+   */
+  nameList?: PlayerDetail[];
+  onNameListChange?: (list: PlayerDetail[]) => void;
 }
+
+const isFilled = (p: PlayerDetail) => Boolean((p.number || "").trim() || (p.name || "").trim());
 
 export function SizeQuantityInput({
   value,
   onChange,
   isJersey = false,
   error,
+  nameList,
+  onNameListChange,
 }: SizeQuantityInputProps) {
   const rows = value.length > 0 ? value : [];
+  const usesMasterList = Boolean(onNameListChange);
+  const masterList = (nameList ?? []).filter(isFilled);
+
+  // Names per size from the master list, in the order sizes first appear
+  const sizeCounts = masterList.reduce<{ size: string; count: number }[]>((acc, p) => {
+    if (!p.size) return acc;
+    const hit = acc.find((c) => c.size === p.size);
+    if (hit) hit.count += 1;
+    else acc.push({ size: p.size, count: 1 });
+    return acc;
+  }, []);
+  const unsizedCount = masterList.filter((p) => !p.size).length;
+  const rowsMatchList = sizeCounts.every((c) =>
+    rows.some((r) => r.size === c.size && (r.quantity || 0) >= c.count)
+  );
+
+  const namesForRow = (row: SizeQuantity) =>
+    usesMasterList ? masterList.filter((p) => p.size === row.size) : (row.players || []).filter(isFilled);
+
+  // Create / raise size rows so every size in the name list has room for its names
+  const applyListSizes = () => {
+    // The untouched default row (one size, quantity 1) is replaced if the list doesn't use that size
+    const onlyDefaultRow =
+      rows.length === 1 && (rows[0].quantity || 1) === 1 && !sizeCounts.some((c) => c.size === rows[0].size);
+    const next = onlyDefaultRow ? [] : rows.map((r) => ({ ...r }));
+    for (const { size, count } of sizeCounts) {
+      const row = next.find((r) => r.size === size);
+      if (row) row.quantity = Math.max(row.quantity || 1, count);
+      else next.push({ size, quantity: count, players: [] });
+    }
+    onChange(next);
+  };
 
   // State for active modal to edit player names & numbers
   const [modalIndex, setModalIndex] = useState<number | null>(null);
+
+  // What the customer is typing in a quantity box; lets the box be empty mid-edit
+  // while the saved quantity never drops below 1
+  const [qtyDraft, setQtyDraft] = useState<{ idx: number; text: string } | null>(null);
 
   const addRow = (size = "") => {
     const newRow: SizeQuantity = { size, quantity: 1, players: [] };
@@ -57,6 +104,13 @@ export function SizeQuantityInput({
   };
 
   const handleSavePlayers = (idx: number, players: PlayerDetail[]) => {
+    if (usesMasterList && onNameListChange) {
+      // Replace this size's slice of the master list
+      const size = rows[idx]?.size || "";
+      const others = (nameList ?? []).filter((p) => isFilled(p) && p.size !== size);
+      onNameListChange([...others, ...players.filter(isFilled).map((p) => ({ ...p, size }))]);
+      return;
+    }
     onChange(
       rows.map((r, i) => (i === idx ? { ...r, players } : r))
     );
@@ -96,6 +150,41 @@ export function SizeQuantityInput({
         </div>
       </div>
 
+      {/* Name list summary: fill sizes from the back print name list */}
+      {usesMasterList && masterList.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-emerald-900">
+                📝 Name List: {masterList.length} player{masterList.length === 1 ? "" : "s"}
+              </p>
+              {sizeCounts.length > 0 && (
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  {sizeCounts.map((c) => `${c.size} × ${c.count}`).join("  ·  ")}
+                </p>
+              )}
+            </div>
+            {sizeCounts.length > 0 && !rowsMatchList && (
+              <button
+                type="button"
+                onClick={applyListSizes}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer"
+              >
+                Use these sizes
+              </button>
+            )}
+            {sizeCounts.length > 0 && rowsMatchList && (
+              <span className="text-xs font-semibold text-emerald-700">✓ Sizes match the list</span>
+            )}
+          </div>
+          {unsizedCount > 0 && (
+            <p className="text-xs text-amber-700 mt-2">
+              ⚠ {unsizedCount} name{unsizedCount === 1 ? " has" : "s have"} no size — go back to the Name List and pick a size.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-3">
         <label className="text-sm font-semibold text-gray-700">
           Sizes &amp; Quantities <span className="text-red-500">*</span>
@@ -120,9 +209,8 @@ export function SizeQuantityInput({
 
       <div className="space-y-3">
         {rows.map((row, idx) => {
-          const filledPlayers = (row.players || []).filter(
-            (p) => (p.number && p.number.trim()) || (p.name && p.name.trim())
-          );
+          const filledPlayers = namesForRow(row);
+          const qty = row.quantity || 0;
 
           return (
             <div key={idx} className="bg-white border border-gray-200 rounded-2xl p-3 shadow-2xs">
@@ -171,28 +259,37 @@ export function SizeQuantityInput({
                 <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden w-24 bg-white">
                   <button
                     type="button"
-                    onClick={() =>
-                      updateQty(idx, Math.max(1, (row.quantity || 1) - 1))
-                    }
-                    className="w-8 h-10 flex items-center justify-center text-gray-500 text-base font-bold active:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setQtyDraft(null);
+                      updateQty(idx, Math.max(1, (row.quantity || 1) - 1));
+                    }}
+                    disabled={(row.quantity || 1) <= 1}
+                    className="w-8 h-10 flex items-center justify-center text-gray-500 text-base font-bold active:bg-gray-100 cursor-pointer disabled:text-gray-300 disabled:cursor-not-allowed"
                   >
                     −
                   </button>
                   <input
                     type="number"
+                    inputMode="numeric"
                     min={1}
-                    value={row.quantity}
-                    onChange={(e) =>
-                      updateQty(
-                        idx,
-                        Math.max(1, parseInt(e.target.value) || 1)
-                      )
-                    }
+                    value={qtyDraft?.idx === idx ? qtyDraft.text : row.quantity}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      // digits only, no leading zeros, so 0 can never be entered
+                      const text = e.target.value.replace(/[^0-9]/g, "").replace(/^0+/, "");
+                      setQtyDraft({ idx, text });
+                      const n = parseInt(text, 10);
+                      if (n >= 1) updateQty(idx, n);
+                    }}
+                    onBlur={() => setQtyDraft(null)}
                     className="flex-1 text-center text-sm font-semibold text-gray-900 focus:outline-none py-2 w-0"
                   />
                   <button
                     type="button"
-                    onClick={() => updateQty(idx, (row.quantity || 1) + 1)}
+                    onClick={() => {
+                      setQtyDraft(null);
+                      updateQty(idx, (row.quantity || 1) + 1);
+                    }}
                     className="w-8 h-10 flex items-center justify-center text-gray-500 text-base font-bold active:bg-gray-100 cursor-pointer"
                   >
                     +
@@ -221,8 +318,8 @@ export function SizeQuantityInput({
                 </button>
               </div>
 
-              {/* Jersey Names & Numbers Section (Only for Jersey) */}
-              {isJersey && row.size && row.quantity > 0 && (
+              {/* Player Names & Numbers (Jersey, or any product using the name list) */}
+              {(isJersey || usesMasterList) && row.size && row.quantity > 0 && (
                 <div className="mt-2.5 pt-2.5 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <button
@@ -238,9 +335,19 @@ export function SizeQuantityInput({
                       </span>
                     </button>
 
-                    <span className="text-[11px] text-gray-400 font-normal">
-                      (Optional)
-                    </span>
+                    {filledPlayers.length === 0 ? (
+                      <span className="text-[11px] text-gray-400 font-normal">(Optional)</span>
+                    ) : filledPlayers.length === qty ? (
+                      <span className="text-[11px] font-semibold text-emerald-700">✓ All {qty} names added</span>
+                    ) : filledPlayers.length < qty ? (
+                      <span className="text-[11px] font-semibold text-amber-700">
+                        {filledPlayers.length} of {qty} names added
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-red-600">
+                        {filledPlayers.length} names but quantity is {qty}
+                      </span>
+                    )}
                   </div>
 
                   {/* Preview of entered player details */}
@@ -296,8 +403,8 @@ export function SizeQuantityInput({
         <JerseyPlayerModal
           isOpen={true}
           size={activeRowForModal.size || "Selected"}
-          quantity={activeRowForModal.quantity || 1}
-          players={activeRowForModal.players || []}
+          quantity={Math.max(activeRowForModal.quantity || 1, namesForRow(activeRowForModal).length)}
+          players={namesForRow(activeRowForModal)}
           onSave={(players) => handleSavePlayers(modalIndex, players)}
           onClose={() => setModalIndex(null)}
         />
