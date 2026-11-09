@@ -10,6 +10,7 @@ import { buildOrderSummary } from "@/lib/orderSummary";
 import { AdminOrder, OrderActivity, designVersions, totalPieces } from "@/lib/adminOrders";
 import { ORDER_STATUSES, statusStyle } from "@/lib/orderStatus";
 import { downloadIceFashionsPdf } from "@/lib/downloadPdf";
+import { generateIceFashionsPdf } from "@/lib/generateIceFashionsPdf";
 import { ProductImage } from "@/types";
 
 const CHANNELS = ["Phone call", "WhatsApp chat", "Walk-in", "Email", "Other"];
@@ -27,7 +28,7 @@ async function postAction(body: Record<string, unknown>) {
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) throw new Error(data?.error || "Could not save");
-  return data as { ok?: boolean; whatsapp?: string; whatsappError?: string; link?: string };
+  return data as { ok?: boolean; whatsapp?: string; whatsappError?: string; link?: string; recipients?: number };
 }
 
 export default function AdminOrderPage() {
@@ -147,6 +148,7 @@ function OrderDetail({ order, reload }: { order: AdminOrder; reload: () => Promi
       {/* Right: status, design, feedback, history */}
       <div className="space-y-4">
         <StatusCard order={order} reload={reload} />
+        <DesignTeamCard order={order} reload={reload} />
         <DesignCard order={order} nextVersion={versions.length + 1} reload={reload} customerLink={customerLink} />
         <FeedbackCard order={order} latestVersion={versions[0]?.version || ""} reload={reload} />
         <Timeline activity={order.activity} />
@@ -206,6 +208,99 @@ function StatusCard({ order, reload }: { order: AdminOrder; reload: () => Promis
         className="w-full py-2 rounded-xl bg-gray-900 text-white text-sm font-bold disabled:opacity-40 cursor-pointer"
       >
         {busy ? "Saving…" : "Save status"}
+      </button>
+    </Card>
+  );
+}
+
+/** Makes the order form PDF, stores it on Cloudinary and sends it to the design team on WhatsApp */
+function DesignTeamCard({ order, reload }: { order: AdminOrder; reload: () => Promise<void> }) {
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState("");
+  const lastSent = order.activity.find((a) => a.type === "design_team");
+
+  const send = async () => {
+    try {
+      setBusy("Creating the PDF…");
+      const doc = await generateIceFashionsPdf({
+        customer: {
+          customerPhone: order.customerPhone,
+          customerName: order.customerName,
+          customerAddress: order.customerAddress,
+          dispatchDate: order.dispatchDate,
+          remarks: order.remarks,
+        },
+        items: order.items,
+      });
+      const blob = doc.output("blob");
+
+      setBusy("Uploading…");
+      const signResp = await fetch("/api/admin/upload-sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.orderId }),
+      });
+      const sign = await signResp.json().catch(() => ({}));
+      if (!signResp.ok) throw new Error(sign?.error || "Could not upload the PDF");
+      const form = new FormData();
+      for (const [k, v] of Object.entries(sign.fields as Record<string, string>)) form.append(k, v);
+      form.append("file", blob, `${order.orderId}.pdf`);
+      const up = await fetch(sign.uploadUrl, { method: "POST", body: form });
+      const upData = await up.json().catch(() => ({}));
+      if (!up.ok || typeof upData?.secure_url !== "string") throw new Error("Could not upload the PDF");
+
+      setBusy("Sending…");
+      const res = await postAction({
+        orderId: order.orderId,
+        type: "design_team",
+        status: ["Submitted", "Changes requested"].includes(order.status) ? "Designing" : "",
+        files: [{ url: upData.secure_url, name: `${order.orderId} order form.pdf` }],
+        note,
+        customerName: order.customerName,
+        dispatchDate: order.dispatchDate,
+      });
+      if (res.whatsapp === "failed") {
+        toast.warning("Saved, but the WhatsApp message failed. Download the PDF and send it by hand.");
+      } else if (res.whatsapp === "partial") {
+        toast.warning("Sent to some of the design team; one number failed.");
+      } else {
+        toast.success(`Order form sent to the design team${res.recipients && res.recipients > 1 ? ` (${res.recipients} numbers)` : ""}`);
+      }
+      setNote("");
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  return (
+    <Card title="Design team">
+      <p className="text-xs text-gray-500">
+        Sends this order form as a PDF to the design team on WhatsApp.
+        {lastSent && (
+          <>
+            {" "}
+            Last sent {fmtDateTime(lastSent.createdAt)}
+            {lastSent.by ? ` by ${lastSent.by}` : ""}.
+          </>
+        )}
+      </p>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        maxLength={300}
+        placeholder="Note for the designers (optional)"
+        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600"
+      />
+      <button
+        onClick={send}
+        disabled={Boolean(busy)}
+        className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold disabled:opacity-50 cursor-pointer"
+      >
+        {busy || (lastSent ? "Send order form again" : "Send order form to design team")}
       </button>
     </Card>
   );
@@ -399,6 +494,7 @@ function FeedbackCard({
 
 const TYPE_LABEL: Record<string, string> = {
   design: "Design",
+  design_team: "Sent to design team",
   feedback: "Feedback",
   customer_response: "Customer reply",
   status: "Status",

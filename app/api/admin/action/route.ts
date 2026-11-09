@@ -3,7 +3,23 @@ import { n8nAdmin, readSession } from "@/lib/adminAuth";
 import { ORDER_STATUSES } from "@/lib/orderStatus";
 import { ProductImage } from "@/types";
 
-const TYPES = new Set(["design", "feedback", "status", "note"]);
+const TYPES = new Set(["design", "design_team", "feedback", "status", "note"]);
+
+/** Design team WhatsApp numbers (DESIGN_TEAM_PHONES, comma separated); 10-digit numbers get 91 */
+function designTeamPhones(): string[] {
+  return (process.env.DESIGN_TEAM_PHONES || "")
+    .split(/[,\s]+/)
+    .map((p) => p.replace(/\D/g, ""))
+    .filter((p) => p.length >= 10)
+    .map((p) => (p.length === 10 ? `91${p}` : p));
+}
+
+const fmtDate = (iso: string) => {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : null;
+  return d && !isNaN(d.getTime())
+    ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : iso || "Not set";
+};
 const CHANNELS = new Set(["", "Phone call", "Walk-in", "WhatsApp chat", "Email", "Other"]);
 
 /**
@@ -66,6 +82,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Order form PDF to the design team: one approved template message per number
+  let whatsapp: { to: string; template: Record<string, unknown> }[] = [];
+  if (type === "design_team") {
+    const pdf = files.find((f) => /^https:\/\/res\.cloudinary\.com\/.+\.pdf$/i.test(f.url));
+    if (!pdf) return NextResponse.json({ error: "The order form PDF is missing" }, { status: 400 });
+    const phones = designTeamPhones();
+    if (phones.length === 0) {
+      return NextResponse.json({ error: "No design team WhatsApp number is set up yet" }, { status: 400 });
+    }
+    // WhatsApp won't send an empty variable, so blanks become a dash / "None"
+    const text = (v: string, fallback: string) => (v.replace(/\s+/g, " ").trim() || fallback).slice(0, 500);
+    const template = {
+      name: process.env.DESIGN_TEAM_TEMPLATE || "design_team_order",
+      language: { code: process.env.DESIGN_TEAM_TEMPLATE_LANG || "en" },
+      components: [
+        { type: "header", parameters: [{ type: "document", document: { link: pdf.url, filename: `${orderId}.pdf` } }] },
+        {
+          type: "body",
+          parameters: [
+            { type: "text", text: orderId },
+            { type: "text", text: text(String(b?.customerName || ""), "-") },
+            { type: "text", text: fmtDate(String(b?.dispatchDate || "")) },
+            { type: "text", text: text(String(b?.note || ""), "None") },
+          ],
+        },
+      ],
+    };
+    whatsapp = phones.map((to) => ({ to, template }));
+  }
+
   const { base, key } = n8nAdmin();
   try {
     const resp = await fetch(`${base}/teams-admin-action`, {
@@ -86,11 +132,12 @@ export async function POST(req: NextRequest) {
         message,
         link,
         imageUrl,
+        ...(whatsapp.length ? { whatsapp } : {}),
       }),
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) return NextResponse.json({ error: data?.error || `Save failed (${resp.status})` }, { status: 502 });
-    return NextResponse.json({ ...data, link });
+    return NextResponse.json({ ...data, link, recipients: whatsapp.length });
   } catch (err) {
     console.error("[Admin] action failed:", err);
     return NextResponse.json({ error: "Could not reach the order server" }, { status: 502 });
