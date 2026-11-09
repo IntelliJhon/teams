@@ -97,7 +97,8 @@ export default function OrderNewContent() {
       customerName: name.trim(),
       customerAddress: address.trim(),
       customerPhone: cleanPhone,
-      dispatchDate: date || new Date().toISOString().split("T")[0],
+      // Delivery date is chosen under Sizes & Quantities; keep one already picked
+      dispatchDate: date || "",
     });
 
     router.push("/order/new/add-product");

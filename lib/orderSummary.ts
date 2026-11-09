@@ -20,6 +20,7 @@ export interface SpecLine {
 export interface PrintSide {
   side: "Front" | "Back";
   type?: string;
+  description?: string;
   images: ProductImage[];
 }
 
@@ -53,7 +54,15 @@ export interface OrderSummary {
 }
 
 // Print answers have their own section, so they're kept out of the spec list
-const PRINT_FIELD_IDS = new Set(["frontPrint", "printType", "printTypeOtherText", "backPrint", "backPrintType"]);
+const PRINT_FIELD_IDS = new Set([
+  "frontPrint",
+  "printType",
+  "printTypeOtherText",
+  "frontPrintDescription",
+  "backPrint",
+  "backPrintType",
+  "backPrintDescription",
+]);
 
 const SIZE_ORDER = [...SIZE_OPTIONS, ...NUMERIC_SIZE_OPTIONS];
 const sizeRank = (s?: string) => {
@@ -153,11 +162,21 @@ function buildPrintSides(item: ProductLineItem): { front?: PrintSide; back?: Pri
   const frontType = [str(fields.printType), str(fields.printTypeOtherText)].filter(Boolean).join(" — ");
   const front =
     (hasFrontQ ? isYes(fields.frontPrint) : frontImages.length > 0)
-      ? { side: "Front" as const, type: frontType || undefined, images: frontImages }
+      ? {
+          side: "Front" as const,
+          type: frontType || undefined,
+          description: str(fields.frontPrintDescription) || undefined,
+          images: frontImages,
+        }
       : undefined;
   const back =
     (hasBackQ ? isYes(fields.backPrint) : backImages.length > 0)
-      ? { side: "Back" as const, type: str(fields.backPrintType) || undefined, images: backImages }
+      ? {
+          side: "Back" as const,
+          type: str(fields.backPrintType) || undefined,
+          description: str(fields.backPrintDescription) || undefined,
+          images: backImages,
+        }
       : undefined;
   return { front, back };
 }

@@ -279,7 +279,7 @@ export function isConditionMet(
 // ─────────────────────────────────────────────
 //  Product schemas
 // ─────────────────────────────────────────────
-export const productSchemas: Record<string, FieldDef[]> = {
+const baseProductSchemas: Record<string, FieldDef[]> = {
   // ── Tshirt (matching Image 1 exactly) ───────
   Tshirt: [
     {
@@ -963,3 +963,37 @@ export const productSchemas: Record<string, FieldDef[]> = {
     },
   ],
 };
+
+const FRONT_PRINT_FIELDS = ["frontPrint", "printType", "printTypeOtherText"];
+const BACK_PRINT_FIELDS = ["backPrint", "backPrintType"];
+
+/** Adds an optional description box after the last Front Print / Back Print question of a product */
+function withPrintDescriptions(fields: FieldDef[]): FieldDef[] {
+  const out = [...fields];
+  const addAfter = (group: string[], field: FieldDef) => {
+    let last = -1;
+    out.forEach((f, i) => {
+      if (group.includes(f.id)) last = i;
+    });
+    if (last !== -1) out.splice(last + 1, 0, field);
+  };
+  addAfter(FRONT_PRINT_FIELDS, {
+    id: "frontPrintDescription",
+    label: "Front print description (optional)",
+    type: "textarea",
+    placeholder: "e.g. logo 3 inches, sponsor name in white, club motto under the logo",
+    conditionalOn: { field: "frontPrint", value: "YES" },
+  });
+  addAfter(BACK_PRINT_FIELDS, {
+    id: "backPrintDescription",
+    label: "Back print description (optional)",
+    type: "textarea",
+    placeholder: "e.g. name above number, number 8 inches, sponsor at the bottom",
+    conditionalOn: { field: "backPrint", value: "YES" },
+  });
+  return out;
+}
+
+export const productSchemas: Record<string, FieldDef[]> = Object.fromEntries(
+  Object.entries(baseProductSchemas).map(([name, fields]) => [name, withPrintDescriptions(fields)])
+);

@@ -109,6 +109,11 @@ export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; or
                       </span>
                     )}
                   </p>
+                  {side!.description && (
+                    <p className="mt-1 text-[9px] sm:text-[11px] text-gray-800 whitespace-pre-wrap">
+                      <span className="font-semibold">Notes:</span> {side!.description}
+                    </p>
+                  )}
                   {side!.images.length > 0 && (
                     <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                       {side!.images.map((img, idx) => (

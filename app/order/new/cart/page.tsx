@@ -11,7 +11,7 @@ import { toast } from "sonner";
 export default function CartPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const { items, removeItem, dispatchDate } = useOrderStore();
+  const { items, removeItem, customerPhone } = useOrderStore();
 
   useEffect(() => {
     setMounted(true);
@@ -19,13 +19,13 @@ export default function CartPage() {
 
   // Guard: the cart needs the customer details first; say so instead of bouncing back silently
   useEffect(() => {
-    if (mounted && !dispatchDate) {
+    if (mounted && !customerPhone) {
       toast.info("Enter the customer details and tap Continue first — then you can add products to the cart.", {
         id: "cart-needs-details",
       });
       router.replace("/order/new");
     }
-  }, [dispatchDate, router, mounted]);
+  }, [customerPhone, router, mounted]);
 
   const handleEdit = (lineId: string) => {
     router.push(`/order/new/add-product?edit=${lineId}`);

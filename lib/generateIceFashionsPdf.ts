@@ -248,7 +248,14 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
     const badgeW = (colW - 4 - (perRow - 1) * 2) / perRow;
     const badgeH = 14;
     const rowsNeeded = Math.max(...sides.map((s) => Math.ceil(s.images.length / perRow)));
-    const blockH = 11 + rowsNeeded * (badgeH + 2) + (rowsNeeded ? 1 : 0);
+    // Optional description under the print type, up to 6 lines per side
+    setFont("normal", 7.5);
+    const descLines = sides.map((s) =>
+      s.description ? (doc.splitTextToSize(`Notes: ${s.description}`, colW - 4) as string[]).slice(0, 6) : []
+    );
+    const descH = Math.max(0, ...descLines.map((l) => l.length)) * 3.3;
+    const imgTop = 11 + (descH ? descH + 1 : 0);
+    const blockH = imgTop + rowsNeeded * (badgeH + 2) + (rowsNeeded ? 1 : 0);
     ensure(Math.min(blockH, BOTTOM_LIMIT - 25));
 
     const top = y;
@@ -262,10 +269,15 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
         const t = doc.splitTextToSize(`Type: ${side.type}`, colW - 4) as string[];
         doc.text(t[0] || "", x0 + 2, top + 8.5);
       }
+      if (descLines[si].length) {
+        setFont("normal", 7.5, [55, 65, 81]);
+        doc.text(descLines[si], x0 + 2, top + 12.3);
+        doc.setTextColor(0, 0, 0);
+      }
 
       side.images.forEach((img, idx) => {
         const bx = x0 + 2 + (idx % perRow) * (badgeW + 2);
-        const by = top + 11 + Math.floor(idx / perRow) * (badgeH + 2);
+        const by = top + imgTop + Math.floor(idx / perRow) * (badgeH + 2);
         doc.setFillColor(243, 248, 255);
         doc.setDrawColor(147, 197, 253);
         doc.setLineWidth(0.3);

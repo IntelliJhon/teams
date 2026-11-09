@@ -38,7 +38,10 @@ export default function AddProductContent() {
   const searchParams = useSearchParams();
   const editLineId = searchParams.get("edit");
 
-  const { addItem, updateItem, items } = useOrderStore();
+  const { addItem, updateItem, items, dispatchDate, setHeader } = useOrderStore();
+  // Delivery date is for the whole order; it is asked under Sizes & Quantities
+  const [deliveryDate, setDeliveryDate] = useState(dispatchDate || "");
+  const todayIso = new Date().toISOString().split("T")[0];
   const existingItem = editLineId
     ? items.find((it) => it.lineId === editLineId)
     : null;
@@ -137,8 +140,13 @@ export default function AddProductContent() {
     } else if (sizeQuantities.some((s) => s.quantity < 1)) {
       e.sizes = "All quantities must be at least 1.";
     }
+    if (!deliveryDate) {
+      e.deliveryDate = "Choose the date of delivery.";
+    } else if (deliveryDate < todayIso && deliveryDate !== dispatchDate) {
+      e.deliveryDate = "The delivery date can't be in the past.";
+    }
     return e;
-  }, [sizeQuantities]);
+  }, [sizeQuantities, deliveryDate, todayIso, dispatchDate]);
 
   const handleDetailsContinue = () => {
     const e = validateDetails();
@@ -190,6 +198,8 @@ export default function AddProductContent() {
         ? { nameListFiles: nameListFiles.filter((f, i) => nameListFiles.findIndex((g) => g.url === f.url) === i) }
         : {}),
     };
+
+    setHeader({ dispatchDate: deliveryDate });
 
     if (existingItem) {
       updateItem(existingItem.lineId, item);
@@ -402,10 +412,16 @@ export default function AddProductContent() {
       );
     }
 
-    // If text input
-    if (fieldDef.type === "text") {
+    // If text input (single line or a description box)
+    if (fieldDef.type === "text" || fieldDef.type === "textarea") {
       return (
-        <div key={fieldDef.id} className="mb-4">
+        <div
+          key={fieldDef.id}
+          className={fieldDef.conditionalOn ? "-mt-1 mb-4 pl-3 border-l-2 border-emerald-200" : "mb-4"}
+        >
+          {fieldDef.type === "textarea" && (
+            <p className="text-xs font-medium text-gray-500 mb-1.5 px-1">{fieldDef.label}</p>
+          )}
           <div
             className={`bg-white border rounded-xl px-4 py-3 ${
               errors[fieldDef.id]
@@ -413,15 +429,26 @@ export default function AddProductContent() {
                 : "border-gray-400"
             }`}
           >
-            <input
-              type="text"
-              value={fields[fieldDef.id] ?? ""}
-              onChange={(e) =>
-                handleFieldChange(fieldDef.id, e.target.value)
-              }
-              placeholder={fieldDef.label}
-              className="w-full text-sm text-gray-900 placeholder-gray-500 focus:outline-none bg-transparent"
-            />
+            {fieldDef.type === "textarea" ? (
+              <textarea
+                value={fields[fieldDef.id] ?? ""}
+                onChange={(e) => handleFieldChange(fieldDef.id, e.target.value)}
+                placeholder={fieldDef.placeholder || fieldDef.label}
+                rows={3}
+                maxLength={1000}
+                className="w-full text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent resize-y"
+              />
+            ) : (
+              <input
+                type="text"
+                value={fields[fieldDef.id] ?? ""}
+                onChange={(e) =>
+                  handleFieldChange(fieldDef.id, e.target.value)
+                }
+                placeholder={fieldDef.label}
+                className="w-full text-sm text-gray-900 placeholder-gray-500 focus:outline-none bg-transparent"
+              />
+            )}
           </div>
           {errors[fieldDef.id] && (
             <p className="mt-1 text-xs text-red-500 font-medium px-1">
@@ -575,6 +602,31 @@ export default function AddProductContent() {
                   ? { nameList, onNameListChange: setNameList }
                   : {})}
               />
+
+              {/* Date of delivery (whole order) */}
+              <div className="mt-2 mb-28">
+                <label htmlFor="delivery-date" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Date of delivery <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="delivery-date"
+                  type="date"
+                  value={deliveryDate}
+                  min={todayIso}
+                  onChange={(e) => {
+                    setDeliveryDate(e.target.value);
+                    if (errors.deliveryDate) setErrors((prev) => ({ ...prev, deliveryDate: "" }));
+                  }}
+                  className={`w-full bg-white border rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-emerald-600 ${
+                    errors.deliveryDate ? "border-red-400" : "border-gray-400"
+                  }`}
+                />
+                {errors.deliveryDate ? (
+                  <p className="mt-1 text-xs text-red-500 font-medium px-1">{errors.deliveryDate}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-400 px-1">Applies to the whole order.</p>
+                )}
+              </div>
             </div>
           )}
         </div>
