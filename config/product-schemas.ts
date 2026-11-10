@@ -247,6 +247,7 @@ export const COLLAR_TYPE_OPTIONS: OptionItem[] = [
 // Where each front image is printed; "Others" lets the customer type their own placement
 export const OTHER_POSITION = "Others";
 export const FRONT_IMAGE_POSITIONS: string[] = [
+  "Front Image",
   "Left Chest Logo",
   "Right Chest Logo",
   "Central Matter",
@@ -257,6 +258,7 @@ export const FRONT_IMAGE_POSITIONS: string[] = [
 
 // Where each back image is printed (player names/numbers go in the separate Name List)
 export const BACK_IMAGE_POSITIONS: string[] = [
+  "Back Image",
   "Neck Logo",
   "Sponsor Logo",
   OTHER_POSITION,

@@ -214,12 +214,26 @@ function StatusCard({ order, reload }: { order: AdminOrder; reload: () => Promis
 }
 
 /** Makes the order form PDF, stores it on Cloudinary and sends it to the design team on WhatsApp */
+const FROM_KEY = "teams-admin-design-from";
+
 function DesignTeamCard({ order, reload }: { order: AdminOrder; reload: () => Promise<void> }) {
   const [note, setNote] = useState("");
+  // Who the order form is from (name / branch); remembered on this device
+  const [from, setFrom] = useState(() => {
+    try {
+      return typeof window !== "undefined" ? localStorage.getItem(FROM_KEY) || "" : "";
+    } catch {
+      return "";
+    }
+  });
   const [busy, setBusy] = useState("");
   const lastSent = order.activity.find((a) => a.type === "design_team");
 
   const send = async () => {
+    if (!from.trim()) return toast.error("Fill in who it's from");
+    try {
+      localStorage.setItem(FROM_KEY, from.trim());
+    } catch {}
     try {
       setBusy("Creating the PDF…");
       const doc = await generateIceFashionsPdf({
@@ -256,6 +270,7 @@ function DesignTeamCard({ order, reload }: { order: AdminOrder; reload: () => Pr
         status: ["Submitted", "Changes requested"].includes(order.status) ? "Designing" : "",
         files: [{ url: upData.secure_url, name: `${order.orderId} order form.pdf` }],
         note,
+        from: from.trim(),
         customerName: order.customerName,
         dispatchDate: order.dispatchDate,
       });
@@ -287,6 +302,18 @@ function DesignTeamCard({ order, reload }: { order: AdminOrder; reload: () => Pr
           </>
         )}
       </p>
+      <label className="block">
+        <span className="text-xs font-semibold text-gray-700">
+          From <span className="text-red-500">*</span>
+        </span>
+        <input
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          maxLength={80}
+          placeholder="Your name or branch"
+          className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600"
+        />
+      </label>
       <textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
@@ -297,7 +324,7 @@ function DesignTeamCard({ order, reload }: { order: AdminOrder; reload: () => Pr
       />
       <button
         onClick={send}
-        disabled={Boolean(busy)}
+        disabled={Boolean(busy) || !from.trim()}
         className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold disabled:opacity-50 cursor-pointer"
       >
         {busy || (lastSent ? "Send order form again" : "Send order form to design team")}

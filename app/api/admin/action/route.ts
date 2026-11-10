@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
 
   // Order form PDF to the design team: one approved template message per number
   let whatsapp: { to: string; template: Record<string, unknown> }[] = [];
+  const from = String(b?.from || "").replace(/\s+/g, " ").trim().slice(0, 80);
   if (type === "design_team") {
     const pdf = files.find((f) => /^https:\/\/res\.cloudinary\.com\/.+\.pdf$/i.test(f.url));
     if (!pdf) return NextResponse.json({ error: "The order form PDF is missing" }, { status: 400 });
@@ -91,8 +92,10 @@ export async function POST(req: NextRequest) {
     if (phones.length === 0) {
       return NextResponse.json({ error: "No design team WhatsApp number is set up yet" }, { status: 400 });
     }
+    if (!from) return NextResponse.json({ error: "Fill in who it's from" }, { status: 400 });
     // WhatsApp won't send an empty variable, so blanks become a dash / "None"
     const text = (v: string, fallback: string) => (v.replace(/\s+/g, " ").trim() || fallback).slice(0, 500);
+    // design_team_order body: {{1}} order, {{2}} from, {{3}} customer, {{4}} delivery date, {{5}} note
     const template = {
       name: process.env.DESIGN_TEAM_TEMPLATE || "design_team_order",
       language: { code: process.env.DESIGN_TEAM_TEMPLATE_LANG || "en" },
@@ -102,6 +105,7 @@ export async function POST(req: NextRequest) {
           type: "body",
           parameters: [
             { type: "text", text: orderId },
+            { type: "text", text: from },
             { type: "text", text: text(String(b?.customerName || ""), "-") },
             { type: "text", text: fmtDate(String(b?.dispatchDate || "")) },
             { type: "text", text: text(String(b?.note || ""), "None") },
@@ -123,7 +127,11 @@ export async function POST(req: NextRequest) {
         status,
         version,
         files,
-        note: String(b?.note || "").slice(0, 2000),
+        // The order history shows who the order form came from above the note
+        note: [type === "design_team" ? `From: ${from}` : "", String(b?.note || "").trim()]
+          .filter(Boolean)
+          .join("\n")
+          .slice(0, 2000),
         channel,
         by: session.name,
         notify,
