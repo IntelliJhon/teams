@@ -2,6 +2,7 @@ import { OrderHeader, PlayerDetail, ProductImage, ProductLineItem } from "@/type
 import {
   productSchemas,
   isConditionMet,
+  COLLAR_TYPE_OPTIONS,
   SIZE_OPTIONS,
   NUMERIC_SIZE_OPTIONS,
 } from "@/config/product-schemas";
@@ -15,6 +16,13 @@ import {
 export interface SpecLine {
   label: string;
   value: string;
+  imageUrl?: string; // picture of the chosen option, e.g. the collar
+}
+
+/** Picture for an answer that has one (collar types) */
+function optionImage(fieldId: string, value: string): string | undefined {
+  if (fieldId !== "collarType") return undefined;
+  return COLLAR_TYPE_OPTIONS.find((o) => o.value === value)?.imageUrl || undefined;
 }
 
 export interface PrintSide {
@@ -133,6 +141,7 @@ function buildSpecs(item: ProductLineItem): SpecLine[] {
     specs.push({
       label: cleanLabel(f.label),
       value: extras.length ? `${value} (${extras.join(", ")})` : value,
+      imageUrl: optionImage(f.id, value),
     });
   }
 

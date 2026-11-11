@@ -3,7 +3,7 @@ import { n8nAdmin, readSession } from "@/lib/adminAuth";
 import { ORDER_STATUSES } from "@/lib/orderStatus";
 import { ProductImage } from "@/types";
 
-const TYPES = new Set(["design", "design_team", "feedback", "status", "note"]);
+const TYPES = new Set(["design", "design_team", "feedback", "status", "note", "strike", "unstrike"]);
 
 /** Design team WhatsApp numbers (DESIGN_TEAM_PHONES, comma separated); 10-digit numbers get 91 */
 function designTeamPhones(): string[] {
@@ -41,6 +41,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad status" }, { status: 400 });
   }
   if (!CHANNELS.has(channel)) return NextResponse.json({ error: "Bad channel" }, { status: 400 });
+  // Cross out / restore a history entry: the note carries that entry's id
+  if ((type === "strike" || type === "unstrike") && !/^ACT-[\w-]+$/.test(String(b?.note || ""))) {
+    return NextResponse.json({ error: "Bad history entry" }, { status: 400 });
+  }
+  if ((type === "strike" || type === "unstrike") && status) {
+    return NextResponse.json({ error: "Bad status" }, { status: 400 });
+  }
 
   const files: ProductImage[] = (Array.isArray(b?.files) ? b.files : [])
     .filter((f: ProductImage) => f && typeof f.url === "string" && /^https:\/\//.test(f.url))

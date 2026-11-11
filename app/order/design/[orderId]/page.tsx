@@ -3,6 +3,8 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { OrderActivity } from "@/lib/adminOrders";
+import { ImageUpload } from "@/components/ImageUpload";
+import { ProductImage } from "@/types";
 
 interface DesignView {
   orderId: string;
@@ -32,6 +34,8 @@ function DesignContent() {
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"idle" | "changes">("idle");
   const [comment, setComment] = useState("");
+  const [files, setFiles] = useState<ProductImage[]>([]);
+  const [uploaderKey, setUploaderKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"" | "approved" | "changes">("");
   const [zoom, setZoom] = useState<string | null>(null);
@@ -54,7 +58,7 @@ function DesignContent() {
   const designs = (view?.activity ?? []).filter((a) => a.type === "design");
   const latest = designs[0];
   const older = designs.slice(1);
-  const lastReply = (view?.activity ?? []).find((a) => a.type === "customer_response");
+  const lastReply = (view?.activity ?? []).find((a) => a.type === "customer_response" && !a.struck);
   const repliedToLatest = Boolean(latest && lastReply && lastReply.createdAt > latest.createdAt);
   const locked = ["Approved", "In production", "Dispatched", "Cancelled"].includes(view?.status || "");
 
@@ -63,7 +67,13 @@ function DesignContent() {
     const resp = await fetch(`/api/design/${encodeURIComponent(orderId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, decision, comment, version: latest?.version || "" }),
+      body: JSON.stringify({
+        token,
+        decision,
+        comment,
+        version: latest?.version || "",
+        files: decision === "changes" ? files.filter((f) => /^https:\/\//.test(f.url)).map((f) => ({ url: f.url, name: f.name })) : [],
+      }),
     });
     const data = await resp.json().catch(() => ({}));
     setBusy(false);
@@ -71,6 +81,8 @@ function DesignContent() {
     setDone(decision);
     setMode("idle");
     setComment("");
+    setFiles([]);
+    setUploaderKey((k) => k + 1);
     load();
   };
 
@@ -133,6 +145,22 @@ function DesignContent() {
               Your last reply: {lastReply.status === "Approved" ? "✅ Approved" : "✏️ Changes requested"}
             </p>
             {lastReply.note && <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">“{lastReply.note}”</p>}
+            {lastReply.files.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {lastReply.files.map((f, i) =>
+                  isImage(f.url) ? (
+                    <button key={i} onClick={() => setZoom(f.url)} className="cursor-zoom-in">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={f.url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                    </button>
+                  ) : (
+                    <a key={i} href={f.url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-emerald-800 underline">
+                      📎 {f.name || `File ${i + 1}`}
+                    </a>
+                  )
+                )}
+              </div>
+            )}
           </section>
         )}
 
@@ -186,13 +214,27 @@ function DesignContent() {
                   placeholder="What should we change? e.g. bigger logo, sponsor in navy"
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600"
                 />
+                <div className="max-h-56 overflow-y-auto">
+                  <ImageUpload
+                    key={uploaderKey}
+                    label="Add a picture or PDF (optional)"
+                    sublabel="A sketch, screenshot or reference"
+                    maxFiles={5}
+                    allowDocuments
+                    documentAccept=".pdf"
+                    hint="Images or PDF, up to 5 files."
+                    buttonLabel="Add picture / PDF"
+                    value={files}
+                    onChange={setFiles}
+                  />
+                </div>
                 <div className="flex gap-2">
                   <button onClick={() => setMode("idle")} className="flex-1 py-3 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 cursor-pointer">
                     Back
                   </button>
                   <button
                     onClick={() => respond("changes")}
-                    disabled={busy || !comment.trim()}
+                    disabled={busy || (!comment.trim() && files.length === 0) || files.some((f) => !/^https:\/\//.test(f.url))}
                     className="flex-[2] py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold disabled:opacity-50 cursor-pointer"
                   >
                     {busy ? "Sending…" : "Send changes"}

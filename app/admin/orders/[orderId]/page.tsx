@@ -151,7 +151,7 @@ function OrderDetail({ order, reload }: { order: AdminOrder; reload: () => Promi
         <DesignTeamCard order={order} reload={reload} />
         <DesignCard order={order} nextVersion={versions.length + 1} reload={reload} customerLink={customerLink} />
         <FeedbackCard order={order} latestVersion={versions[0]?.version || ""} reload={reload} />
-        <Timeline activity={order.activity} />
+        <Timeline order={order} reload={reload} />
       </div>
     </div>
   );
@@ -528,22 +528,50 @@ const TYPE_LABEL: Record<string, string> = {
   note: "Note",
 };
 
-function Timeline({ activity }: { activity: OrderActivity[] }) {
+// Replies that can be crossed out (e.g. an old approval after the customer asked for more changes)
+const STRIKABLE = new Set(["customer_response", "feedback"]);
+
+function Timeline({ order, reload }: { order: AdminOrder; reload: () => Promise<void> }) {
+  const activity = order.activity;
+  const [busyId, setBusyId] = useState("");
+  const toggleStrike = async (a: OrderActivity) => {
+    setBusyId(a.id);
+    try {
+      await postAction({ orderId: order.orderId, type: a.struck ? "unstrike" : "strike", note: a.id });
+      toast.success(a.struck ? "Restored" : "Crossed out");
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+    } finally {
+      setBusyId("");
+    }
+  };
   return (
     <Card title="History">
       {activity.length === 0 && <p className="text-sm text-gray-500">Nothing yet.</p>}
       <ol className="space-y-3">
         {activity.map((a) => (
-          <li key={a.id} className="border-l-2 border-gray-200 pl-3">
+          <li key={a.id} className={`border-l-2 border-gray-200 pl-3 ${a.struck ? "opacity-50" : ""}`}>
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="font-bold text-gray-900">
+              <span className={`font-bold text-gray-900 ${a.struck ? "line-through" : ""}`}>
                 {TYPE_LABEL[a.type] || a.type}
                 {a.version ? ` v${a.version}` : ""}
               </span>
               {a.status && (
                 <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${statusStyle(a.status)}`}>
-                  {a.status}
+                  <span className={a.struck ? "line-through" : ""}>{a.status}</span>
                 </span>
+              )}
+              {a.struck && <span className="text-[10px] font-bold text-gray-500 uppercase">Crossed out</span>}
+              {STRIKABLE.has(a.type) && (
+                <button
+                  onClick={() => toggleStrike(a)}
+                  disabled={busyId === a.id}
+                  title={a.struck ? "Restore this entry" : "Cross out this entry (it stays in the history)"}
+                  className="ml-auto text-[11px] font-semibold text-gray-500 hover:text-gray-900 disabled:opacity-40 cursor-pointer"
+                >
+                  {busyId === a.id ? "…" : a.struck ? "↺ Restore" : "✕ Cross out"}
+                </button>
               )}
             </div>
             <p className="text-[11px] text-gray-500 mt-0.5">
@@ -551,7 +579,9 @@ function Timeline({ activity }: { activity: OrderActivity[] }) {
               {a.by ? ` · ${a.by}` : ""}
               {a.channel ? ` · ${a.channel}` : ""}
             </p>
-            {a.note && <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{a.note}</p>}
+            {a.note && (
+              <p className={`text-sm text-gray-800 mt-1 whitespace-pre-wrap ${a.struck ? "line-through" : ""}`}>{a.note}</p>
+            )}
             {a.files.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {a.files.map((f, i) =>

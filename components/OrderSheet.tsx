@@ -68,7 +68,13 @@ export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; or
                   {p.specs.map((s) => (
                     <div key={s.label} className="grid grid-cols-12 text-[9px] sm:text-[11px] min-h-[20px] items-center">
                       <div className="col-span-5 px-1.5 py-0.5 text-gray-700 font-medium">{s.label}</div>
-                      <div className="col-span-7 px-1.5 py-0.5 font-bold break-words">{s.value}</div>
+                      <div className="col-span-7 px-1.5 py-0.5 font-bold break-words flex items-center justify-between gap-1">
+                        <span>{s.value}</span>
+                        {s.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={s.imageUrl} alt={s.value} className="h-10 w-auto object-contain shrink-0" />
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

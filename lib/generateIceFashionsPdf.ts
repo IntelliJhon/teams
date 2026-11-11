@@ -5,17 +5,25 @@ import { buildOrderSummary, groupNamesBySize, PrintSide, ProductSummary } from "
 interface GeneratePdfProps {
   customer: OrderHeader;
   items: ProductLineItem[];
+  /** Site address for app pictures (/collars/…) when the PDF is made on the server */
+  baseUrl?: string;
 }
 
 /**
  * Safely resolves an image URL or thumbnail to a base64 Data URL for jsPDF embedding
  */
-async function resolveImageDataUrl(img: { url: string; thumbnail?: string }): Promise<string | null> {
+async function resolveImageDataUrl(img: { url: string; thumbnail?: string }, baseUrl = ""): Promise<string | null> {
   if (img.thumbnail && img.thumbnail.startsWith("data:")) {
     return img.thumbnail;
   }
   if (!img.url) return null;
   if (img.url.startsWith("data:")) return img.url;
+  // App pictures like /collars/collar1.png need the site address
+  if (img.url.startsWith("/")) {
+    const origin = typeof window !== "undefined" ? window.location.origin : baseUrl;
+    if (!origin) return null;
+    img = { ...img, url: `${origin.replace(/\/+$/, "")}${img.url}` };
+  }
 
   try {
     const controller = new AbortController();
@@ -58,7 +66,7 @@ const DARK_FILL: RGB = [34, 34, 34];
  * one section per product (specifications, sizes, name list, printing with photos,
  * attached files), flowing onto as many pages as needed.
  */
-export async function generateIceFashionsPdf({ customer, items }: GeneratePdfProps): Promise<jsPDF> {
+export async function generateIceFashionsPdf({ customer, items, baseUrl }: GeneratePdfProps): Promise<jsPDF> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const summary = buildOrderSummary(customer, items);
   const orderNumber = `IF-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -69,7 +77,13 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
     ...(p.back?.images ?? []),
   ]);
   const resolved = new Map<ProductImage, string | null>();
-  await Promise.all(allImages.map(async (img) => resolved.set(img, await resolveImageDataUrl(img))));
+  // Option pictures (collar) by URL
+  const specImages = new Map<string, string | null>();
+  const specUrls = [...new Set(summary.products.flatMap((p) => p.specs.map((s) => s.imageUrl).filter(Boolean)))] as string[];
+  await Promise.all([
+    ...allImages.map(async (img) => resolved.set(img, await resolveImageDataUrl(img))),
+    ...specUrls.map(async (url) => specImages.set(url, await resolveImageDataUrl({ url }, baseUrl))),
+  ]);
 
   let y = 0;
 
@@ -176,8 +190,10 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
     for (let r = 0; r < rows; r++) {
       const spec = specs[r];
       setFont("bold", 8);
-      const valueLines = spec ? (doc.splitTextToSize(spec.value, specW - labelW - 4) as string[]) : [];
-      const h = Math.max(5.5, valueLines.length * 3.6 + 2);
+      const pic = spec?.imageUrl ? specImages.get(spec.imageUrl) : null;
+      const picW = pic ? 22 : 0;
+      const valueLines = spec ? (doc.splitTextToSize(spec.value, specW - labelW - 4 - picW) as string[]) : [];
+      const h = Math.max(pic ? 15 : 5.5, valueLines.length * 3.6 + 2);
       ensure(h);
 
       cell(specX, y, labelW, h);
@@ -187,6 +203,21 @@ export async function generateIceFashionsPdf({ customer, items }: GeneratePdfPro
         doc.text(spec.label, specX + 2, y + 3.9);
         setFont("bold", 8);
         doc.text(valueLines, specX + labelW + 2, y + 3.9);
+        if (pic) {
+          // Fit the picture into a box at the right of the value cell, keeping its shape
+          try {
+            const props = doc.getImageProperties(pic);
+            const boxW = picW - 2;
+            const boxH = h - 2;
+            const scale = Math.min(boxW / props.width, boxH / props.height);
+            const w = props.width * scale;
+            const ih = props.height * scale;
+            const format = (pic.includes("image/png") ? "PNG" : "JPEG") as "PNG" | "JPEG";
+            doc.addImage(pic, format, specX + specW - 1 - boxW + (boxW - w) / 2, y + 1 + (boxH - ih) / 2, w, ih);
+          } catch (e) {
+            console.warn("Could not add option picture to PDF:", e);
+          }
+        }
       }
 
       cell(sizeX, y, sizeW, h, sizeRows[r]?.bold ? [243, 244, 246] : undefined);

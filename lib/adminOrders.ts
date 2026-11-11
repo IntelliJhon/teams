@@ -12,6 +12,7 @@ export interface OrderActivity {
   channel: string;
   by: string;
   createdAt: string;
+  struck?: boolean; // crossed out by staff (kept, shown with a line through it)
 }
 
 export interface AdminOrder {
@@ -102,10 +103,25 @@ function createdFromId(orderId: string): string {
   return Number.isFinite(ts) && ts > 1e12 ? new Date(ts).toISOString() : "";
 }
 
+/**
+ * Applies "strike" / "unstrike" rows (note = the activity id they act on) and drops them,
+ * so a crossed-out entry stays in the history with struck = true.
+ */
+export function applyStrikes(list: OrderActivity[]): OrderActivity[] {
+  const marks = list
+    .filter((a) => a.type === "strike" || a.type === "unstrike")
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const struck = new Map<string, boolean>();
+  for (const m of marks) struck.set(m.note, m.type === "strike");
+  return list
+    .filter((a) => a.type !== "strike" && a.type !== "unstrike")
+    .map((a) => (struck.get(a.id) ? { ...a, struck: true } : a));
+}
+
 /** Joins the three sheet tabs (Order, Customer_test, Order_Activity) into orders, newest first */
 export function buildAdminOrders(data: { orders?: Row[]; items?: Row[]; activity?: Row[] }): AdminOrder[] {
   const items = data.items ?? [];
-  const activity = (data.activity ?? []).map(activityFromRow);
+  const activity = applyStrikes((data.activity ?? []).map(activityFromRow));
   return (data.orders ?? [])
     .filter((o) => str(o.order_id))
     .map((o) => {
