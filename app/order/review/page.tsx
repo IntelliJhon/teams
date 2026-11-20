@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { previewSrc } from "@/lib/fileHelpers";
 import { useRouter } from "next/navigation";
 import { useOrderStore } from "@/store/order-store";
 import { submitOrder, updateOrder, ApiError } from "@/lib/api";
@@ -350,7 +351,7 @@ export default function ReviewPage() {
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={img.thumbnail || img.url}
+                          src={previewSrc(img)}
                           alt={img.position || `front-${i + 1}`}
                           className="w-12 h-12 object-cover"
                           onError={(e) => {
@@ -388,7 +389,7 @@ export default function ReviewPage() {
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={img.thumbnail || img.url}
+                          src={previewSrc(img)}
                           alt={img.position || `back-${i + 1}`}
                           className="w-12 h-12 object-cover"
                           onError={(e) => {
@@ -424,7 +425,7 @@ export default function ReviewPage() {
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={img.thumbnail || img.url}
+                          src={previewSrc(img)}
                           alt={`photo-${i + 1}`}
                           className="w-12 h-12 object-cover"
                           onError={(e) => {

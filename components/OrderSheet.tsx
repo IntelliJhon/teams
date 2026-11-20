@@ -1,6 +1,7 @@
 "use client";
 
 import { OrderSummary, groupNamesBySize } from "@/lib/orderSummary";
+import { isPdfFile, previewSrc } from "@/lib/fileHelpers";
 
 /** The ICE FASHIONS order form drawn from an order summary (used by View Form and the admin panel) */
 export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; orderNumber: string }) {
@@ -132,7 +133,7 @@ export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; or
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={img.thumbnail || img.url}
+                            src={previewSrc(img)}
                             alt={img.position || `${side!.side} ${idx + 1}`}
                             className="w-9 h-9 object-cover rounded border border-blue-200 bg-white flex-shrink-0"
                           />
@@ -140,7 +141,7 @@ export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; or
                             <span className="block text-[9px] sm:text-[10px] font-bold truncate">
                               {img.position || `${side!.side} #${idx + 1}`}
                             </span>
-                            <span className="block text-[8px] text-blue-600">Open ↗</span>
+                            <span className="block text-[8px] text-blue-600">{isPdfFile(img) ? "PDF ↗" : "Open ↗"}</span>
                           </span>
                         </a>
                       ))}

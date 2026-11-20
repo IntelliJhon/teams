@@ -1,6 +1,7 @@
 "use client";
 
 import { ProductLineItem } from "@/types";
+import { previewSrc } from "@/lib/fileHelpers";
 import { productSchemas } from "@/config/product-schemas";
 
 interface CartItemProps {
@@ -178,7 +179,7 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={img.thumbnail || img.url}
+                  src={previewSrc(img)}
                   alt={img.position || `front-${i}`}
                   className="w-12 h-12 object-cover"
                   onError={(e) => {
@@ -216,7 +217,7 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={img.thumbnail || img.url}
+                  src={previewSrc(img)}
                   alt={img.position || `back-${i}`}
                   className="w-12 h-12 object-cover"
                   onError={(e) => {
@@ -252,7 +253,7 @@ export function CartItem({ item, onEdit, onDelete, index }: CartItemProps) {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={img.thumbnail || img.url}
+                  src={previewSrc(img)}
                   alt={`ref-${i}`}
                   className="w-12 h-12 object-cover"
                   onError={(e) => {

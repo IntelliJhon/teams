@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { OrderHeader, ProductImage, ProductLineItem } from "@/types";
 import { buildOrderSummary, groupNamesBySize, PrintSide, ProductSummary } from "@/lib/orderSummary";
+import { isPdfFile, pdfPreviewUrl } from "@/lib/fileHelpers";
 
 interface GeneratePdfProps {
   customer: OrderHeader;
@@ -81,7 +82,17 @@ export async function generateIceFashionsPdf({ customer, items, baseUrl }: Gener
   const specImages = new Map<string, string | null>();
   const specUrls = [...new Set(summary.products.flatMap((p) => p.specs.map((s) => s.imageUrl).filter(Boolean)))] as string[];
   await Promise.all([
-    ...allImages.map(async (img) => resolved.set(img, await resolveImageDataUrl(img))),
+    // PDFs: page 1 as a JPG when Cloudinary hosts it, otherwise a "PDF" tile
+    ...allImages.map(async (img) =>
+      resolved.set(
+        img,
+        isPdfFile(img)
+          ? pdfPreviewUrl(img.url)
+            ? await resolveImageDataUrl({ url: pdfPreviewUrl(img.url) })
+            : null
+          : await resolveImageDataUrl(img)
+      )
+    ),
     ...specUrls.map(async (url) => specImages.set(url, await resolveImageDataUrl({ url }, baseUrl))),
   ]);
 
@@ -324,6 +335,11 @@ export async function generateIceFashionsPdf({ customer, items, baseUrl }: Gener
           } catch (e) {
             console.warn(`Could not add ${side.side} photo to PDF:`, e);
           }
+        } else if (isPdfFile(img)) {
+          doc.setFillColor(254, 226, 226);
+          doc.rect(bx + 1.2, by + 1.2, photo, photo, "F");
+          setFont("bold", 7, [185, 28, 28]);
+          doc.text("PDF", bx + 1.2 + photo / 2, by + 1.2 + photo / 2 + 1.2, { align: "center" });
         } else {
           doc.setFillColor(224, 231, 255);
           doc.rect(bx + 1.2, by + 1.2, photo, photo, "F");
@@ -334,7 +350,7 @@ export async function generateIceFashionsPdf({ customer, items, baseUrl }: Gener
         setFont("bold", 7, [29, 78, 216]);
         doc.text(label.slice(0, 2), tx, by + 4.6);
         setFont("normal", 6, [37, 99, 235]);
-        doc.text("Open photo", tx, by + badgeH - 2);
+        doc.text(isPdfFile(img) ? "Open PDF" : "Open photo", tx, by + badgeH - 2);
       });
       doc.setTextColor(0, 0, 0);
       doc.setDrawColor(0, 0, 0);

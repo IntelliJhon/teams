@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { PDF_ICON, previewSrc } from "@/lib/fileHelpers";
 import { ProductImage } from "@/types";
 import { uploadImage, ApiError } from "@/lib/api";
 import { compressImage, createThumbnail } from "@/lib/imageCompress";
@@ -283,9 +284,25 @@ export function ImageUpload({
                 key={idx}
                 className="flex gap-3 items-start p-2.5 rounded-2xl border border-gray-200 bg-gray-50/60"
               >
-                <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200 bg-white flex-shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={slot.localUrl} alt={`upload-${idx}`} className="w-full h-full object-cover" />
+                <div
+                  className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200 bg-white flex-shrink-0"
+                  title={slot.name}
+                >
+                  {slot.isDocument ? (
+                    // PDFs: page 1 once uploaded (Cloudinary), else a PDF tile
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewSrc({ url: slot.remoteUrl || "", name: slot.name })}
+                      alt={slot.name || `file-${idx}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        if (e.currentTarget.src !== PDF_ICON) e.currentTarget.src = PDF_ICON;
+                      }}
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={slot.localUrl} alt={`upload-${idx}`} className="w-full h-full object-cover" />
+                  )}
                   {slot.uploading && (
                     <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
                       <svg className="animate-spin w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24">
@@ -361,7 +378,11 @@ export function ImageUpload({
               }`}
             >
               <span className="text-lg leading-none">+</span>
-              <span>{slots.length === 0 ? "Upload image" : "Add more images"}</span>
+              <span>
+                {slots.length === 0
+                  ? allowDocuments ? "Upload image / PDF" : "Upload image"
+                  : allowDocuments ? "Add more images / PDFs" : "Add more images"}
+              </span>
             </button>
           )}
         </div>

@@ -154,7 +154,26 @@ export async function getInvoice(
 /**
  * Upload a single image file to n8n.
  */
+// Vercel refuses request bodies over 4.5 MB, so bigger files go straight to Cloudinary
+const DIRECT_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+async function uploadDirect(file: File): Promise<string> {
+  const signResp = await fetch("/api/upload-sign", { method: "POST" }).catch(() => null);
+  const sign = signResp ? await signResp.json().catch(() => ({})) : {};
+  if (!signResp?.ok || !sign?.uploadUrl) throw new ApiError("Upload failed — please try again.", true);
+  const form = new FormData();
+  for (const [k, v] of Object.entries(sign.fields as Record<string, string>)) form.append(k, v);
+  form.append("file", file);
+  const resp = await fetch(sign.uploadUrl, { method: "POST", body: form }).catch(() => null);
+  const data = resp ? await resp.json().catch(() => ({})) : {};
+  if (!resp?.ok || typeof data?.secure_url !== "string") {
+    throw new ApiError(data?.error?.message || "Upload failed — please try again.", true, resp?.status);
+  }
+  return data.secure_url;
+}
+
 export async function uploadImage(file: File): Promise<string> {
+  if (file.size > DIRECT_UPLOAD_BYTES) return uploadDirect(file);
   const formData = new FormData();
   formData.append("file", file);
 

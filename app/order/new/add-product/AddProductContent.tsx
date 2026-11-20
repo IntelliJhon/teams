@@ -267,7 +267,7 @@ export default function AddProductContent() {
   const frontUpload = (
     <div className={hasFrontPrintField ? "-mt-1 mb-4 pl-3 border-l-2 border-emerald-200" : ""}>
       <ImageUpload
-        label="Front Images (Optional)"
+        label="Front Images / PDF (Optional)"
         sublabel="Upload Front Design / Logo / Sponsor"
         maxFiles={10}
         value={frontImages}
@@ -276,6 +276,9 @@ export default function AddProductContent() {
           if (errors.frontImages) setErrors((prev) => ({ ...prev, frontImages: "" }));
         }}
         positionOptions={FRONT_IMAGE_POSITIONS}
+        allowDocuments
+        documentAccept=".pdf"
+        hint="Add up to 10 photos or PDFs."
         error={errors.frontImages}
       />
     </div>
@@ -284,7 +287,7 @@ export default function AddProductContent() {
   const backUpload = (
     <div className={hasBackPrintField ? "-mt-1 mb-4 pl-3 border-l-2 border-emerald-200" : ""}>
       <ImageUpload
-        label="Back Images (Optional)"
+        label="Back Images / PDF (Optional)"
         sublabel="Upload Back Design / Player Artwork / Sponsor"
         maxFiles={10}
         value={backImages}
@@ -293,6 +296,9 @@ export default function AddProductContent() {
           if (errors.backImages) setErrors((prev) => ({ ...prev, backImages: "" }));
         }}
         positionOptions={BACK_IMAGE_POSITIONS}
+        allowDocuments
+        documentAccept=".pdf"
+        hint="Add up to 10 photos or PDFs."
         error={errors.backImages}
       />
 
