@@ -4,6 +4,14 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // An empty cart (e.g. Submit tapped again after the order was sent) is not an order
+    if (!Array.isArray(body?.items) || body.items.length === 0 || !String(body?.customerPhone || "").trim()) {
+      return NextResponse.json(
+        { error: "This order is empty or has no customer details. Please start a new order." },
+        { status: 400 }
+      );
+    }
+
     // Ensure orderId is always present in the submitted JSON body for n8n
     if (!body.orderId) {
       body.orderId = `ORD-${Date.now()}`;
