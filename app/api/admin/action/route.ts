@@ -3,7 +3,7 @@ import { n8nAdmin, readSession } from "@/lib/adminAuth";
 import { ORDER_STATUSES } from "@/lib/orderStatus";
 import { ProductImage } from "@/types";
 
-const TYPES = new Set(["design", "design_team", "feedback", "status", "note", "strike", "unstrike"]);
+const TYPES = new Set(["design", "design_team", "feedback", "status", "note", "strike", "unstrike", "remarks"]);
 
 /** Design team WhatsApp numbers (DESIGN_TEAM_PHONES, comma separated); 10-digit numbers get 91 */
 function designTeamPhones(): string[] {
@@ -147,6 +147,8 @@ export async function POST(req: NextRequest) {
         message,
         link,
         imageUrl,
+        // New remarks for the order (type "remarks"); n8n writes them to the Order sheet
+        ...(type === "remarks" ? { remarks: String(b?.remarks ?? "").slice(0, 2000) } : {}),
         ...(whatsapp.length ? { whatsapp } : {}),
       }),
     });

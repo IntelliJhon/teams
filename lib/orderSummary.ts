@@ -55,6 +55,10 @@ export interface OrderSummary {
   customerName: string;
   customerPhone: string;
   customerAddress: string;
+  fromName: string;
+  signName: string;
+  branch: string;
+  marketingPerson: string;
   deliveryDate: string;
   remarks: string;
   products: ProductSummary[];
@@ -237,6 +241,10 @@ export function buildOrderSummary(customer: Partial<OrderHeader>, items: Product
     customerName: customer.customerName || "",
     customerPhone: customer.customerPhone || "",
     customerAddress: customer.customerAddress || "",
+    fromName: customer.fromName || "",
+    signName: customer.signName || "",
+    branch: customer.branch || "",
+    marketingPerson: customer.marketingPerson || "",
     deliveryDate: customer.dispatchDate || "",
     remarks: customer.remarks || "",
     products,

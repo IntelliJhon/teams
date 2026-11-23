@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { previewSrc } from "@/lib/fileHelpers";
 import { useRouter } from "next/navigation";
-import { useOrderStore } from "@/store/order-store";
+import { headerOf, useOrderStore } from "@/store/order-store";
 import { submitOrder, updateOrder, ApiError } from "@/lib/api";
 import { ProgressBar } from "@/components/ProgressBar";
 import { ErrorState } from "@/components/ErrorState";
@@ -18,6 +18,7 @@ export default function ReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [showOrderFormModal, setShowOrderFormModal] = useState(false);
 
+  const store = useOrderStore();
   const {
     setHeader,
     customerPhone,
@@ -40,13 +41,7 @@ export default function ReviewPage() {
 
   const handleDirectDownloadPdf = async () => {
     await downloadIceFashionsPdf({
-      customer: {
-        customerPhone,
-        customerName,
-        customerAddress,
-        dispatchDate,
-        remarks: localRemarks,
-      },
+      customer: { ...headerOf(store), remarks: localRemarks },
       items,
     });
   };
@@ -58,10 +53,7 @@ export default function ReviewPage() {
       if (isEditing && editOrderId && editToken) {
         // Update existing order in n8n & Google Sheets
         await updateOrder(editOrderId, editToken, {
-          customerPhone,
-          customerName,
-          customerAddress,
-          dispatchDate,
+          ...headerOf(store),
           remarks: localRemarks,
           items,
         });
@@ -74,10 +66,7 @@ export default function ReviewPage() {
         const finalOrderId = `ORD-${Date.now()}`;
         const result = await submitOrder({
           orderId: finalOrderId,
-          customerPhone,
-          customerName,
-          customerAddress,
-          dispatchDate,
+          ...headerOf(store),
           remarks: localRemarks,
           items,
         });
@@ -178,6 +167,10 @@ export default function ReviewPage() {
           <Row label="Phone" value={customerPhone || "—"} />
           {customerName && <Row label="Name" value={customerName} />}
           {customerAddress && <Row label="Address" value={customerAddress} />}
+          {store.branch && <Row label="Branch" value={store.branch} />}
+          {store.marketingPerson && <Row label="Marketing" value={store.marketingPerson} />}
+          {store.fromName && <Row label="From" value={store.fromName} />}
+          {store.signName && <Row label="Name & Sign" value={store.signName} />}
           {dispatchDate && <Row label="Dispatch Date" value={dispatchDate} />}
         </div>
       </div>

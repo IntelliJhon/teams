@@ -24,10 +24,10 @@ export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; or
         </div>
       </div>
 
-      {/* 2. FROM & DATE Row */}
-      <div className="flex items-baseline justify-between gap-2 text-[10px] sm:text-xs font-bold mb-2 sm:mb-3">
+      {/* 2. CUSTOMER & DATE, then FROM (and branch / marketing) */}
+      <div className="flex items-baseline justify-between gap-2 text-[10px] sm:text-xs font-bold mb-1">
         <div className="flex-1 flex items-baseline gap-1 min-w-0">
-          <span className="flex-shrink-0">FROM</span>
+          <span className="flex-shrink-0">CUSTOMER</span>
           <span className="border-b border-dotted border-black flex-1 px-1 font-semibold text-gray-900 truncate">
             {summary.customerName || "—"} {summary.customerPhone ? `(${summary.customerPhone})` : ""}{" "}
             {summary.customerAddress ? `- ${summary.customerAddress}` : ""}
@@ -41,6 +41,20 @@ export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; or
           </span>
         </div>
       </div>
+      <div className="flex items-baseline gap-1 text-[10px] sm:text-xs font-bold mb-1">
+        <span className="flex-shrink-0">FROM</span>
+        <span className="border-b border-dotted border-black flex-1 px-1 font-semibold text-gray-900 truncate">
+          {summary.fromName || " "}
+        </span>
+      </div>
+      {(summary.branch || summary.marketingPerson) && (
+        <p className="text-[9px] sm:text-[11px] text-gray-600 mb-2">
+          {[summary.branch && `Branch: ${summary.branch}`, summary.marketingPerson && `Marketing: ${summary.marketingPerson}`]
+            .filter(Boolean)
+            .join("   ·   ")}
+        </p>
+      )}
+      <div className="mb-1 sm:mb-2" />
 
       {summary.products.length === 0 && (
         <p className="border border-black p-4 text-center text-xs text-gray-500 mb-3">No products in this order.</p>
@@ -201,7 +215,7 @@ export function OrderSheet({ summary, orderNumber }: { summary: OrderSummary; or
         <div className="flex items-baseline gap-1">
           <span>NAME/SIGN:</span>
           <span className="border-b border-dotted border-black min-w-[80px] sm:min-w-[140px] px-1 font-semibold text-gray-900 text-center">
-            {summary.customerName || "—"}
+            {summary.signName || " "}
           </span>
         </div>
       </div>

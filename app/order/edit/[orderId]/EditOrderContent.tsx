@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useOrderStore } from "@/store/order-store";
+import { headerOf, useOrderStore } from "@/store/order-store";
 import { getOrder, updateOrder, ApiError } from "@/lib/api";
 import { CartItem } from "@/components/CartItem";
 import { ErrorState } from "@/components/ErrorState";
@@ -140,6 +140,10 @@ export default function EditOrderContent() {
             customerAddress: fetched.customerAddress || "",
             dispatchDate: fetched.dispatchDate || new Date().toISOString().split("T")[0],
             remarks: fetched.remarks || "",
+            branch: fetched.branch || "",
+            marketingPerson: fetched.marketingPerson || "",
+            fromName: fetched.fromName || "",
+            signName: fetched.signName || "",
           },
           cleanItems,
           orderId,
@@ -161,11 +165,7 @@ export default function EditOrderContent() {
     setPageState("saving");
     try {
       await updateOrder(orderId, token, {
-        customerPhone,
-        customerName,
-        customerAddress,
-        dispatchDate,
-        remarks,
+        ...headerOf(useOrderStore.getState()),
         items,
       });
       router.push(`/order/confirmation?orderId=${orderId}&invoiceToken=${token}`);

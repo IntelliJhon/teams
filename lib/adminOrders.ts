@@ -24,6 +24,10 @@ export interface AdminOrder {
   remarks: string;
   status: string;
   editToken: string;
+  branch: string;
+  marketingPerson: string;
+  fromName: string;
+  signName: string;
   createdAt: string; // ISO, from the ORD-<timestamp> id when the sheet has no created_at
   lastEdited: string;
   items: ProductLineItem[];
@@ -134,6 +138,10 @@ export function buildAdminOrders(data: { orders?: Row[]; items?: Row[]; activity
         dispatchDate: str(o.dispatch_date),
         remarks: str(o.remarks),
         status: str(o.status) || "Submitted",
+        branch: str(o.branch),
+        marketingPerson: str(o.marketing_person),
+        fromName: str(o.from_name),
+        signName: str(o.sign_name),
         editToken: str(o.edit_token),
         createdAt: str(o.created_at) || createdFromId(orderId),
         lastEdited: str(o.last_edited),
@@ -144,6 +152,41 @@ export function buildAdminOrders(data: { orders?: Row[]; items?: Row[]; activity
       };
     })
     .sort((a, b) => (b.createdAt || b.orderId).localeCompare(a.createdAt || a.orderId));
+}
+
+/** One entry of the admin-managed lists (Portal_Options tab) */
+export interface PortalOption {
+  id: string;
+  type: "branch" | "marketing";
+  name: string;
+  active: boolean;
+}
+
+export function buildOptions(rows: Row[] | undefined): PortalOption[] {
+  return (rows ?? [])
+    .filter((r) => str(r.option_id) && str(r.name))
+    .map((r) => ({
+      id: str(r.option_id),
+      type: (str(r.type) === "marketing" ? "marketing" : "branch") as PortalOption["type"],
+      name: str(r.name),
+      active: str(r.active).toLowerCase() !== "no",
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The order's header fields, for the PDF */
+export function headerOfOrder(o: AdminOrder) {
+  return {
+    customerPhone: o.customerPhone,
+    customerName: o.customerName,
+    customerAddress: o.customerAddress,
+    dispatchDate: o.dispatchDate,
+    remarks: o.remarks,
+    branch: o.branch,
+    marketingPerson: o.marketingPerson,
+    fromName: o.fromName,
+    signName: o.signName,
+  };
 }
 
 /** Design versions sent so far, newest first */

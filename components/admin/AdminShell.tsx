@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AdminOrder } from "@/lib/adminOrders";
+import { AdminOrder, PortalOption } from "@/lib/adminOrders";
 
 /** Login state + order data shared by the admin pages */
 export function useAdmin() {
   const [me, setMe] = useState<{ name: string } | null | undefined>(undefined);
   const [orders, setOrders] = useState<AdminOrder[] | null>(null);
+  const [options, setOptions] = useState<PortalOption[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,6 +24,7 @@ export function useAdmin() {
       const data = await resp.json();
       if (!resp.ok) throw new Error(data?.error || "Could not load orders");
       setOrders(data.orders);
+      setOptions(Array.isArray(data.options) ? data.options : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load orders");
     } finally {
@@ -51,7 +53,7 @@ export function useAdmin() {
     setOrders(null);
   };
 
-  return { me, setMe, orders, error, loading, reload: load, logout };
+  return { me, setMe, orders, options, error, loading, reload: load, logout };
 }
 
 export function AdminLogin({ onLoggedIn }: { onLoggedIn: (me: { name: string }) => void }) {
@@ -129,6 +131,9 @@ export function AdminHeader({ me, onLogout, back }: { me: { name: string }; onLo
           <span className="font-bold text-gray-900 truncate">Ice Fashions · Admin</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          <Link href="/admin/settings" className="text-gray-600 hover:text-gray-900 font-semibold">
+            ⚙ Settings
+          </Link>
           <span className="text-gray-500 hidden sm:inline">{me.name}</span>
           <button onClick={onLogout} className="text-gray-600 hover:text-gray-900 font-semibold cursor-pointer">
             Log out

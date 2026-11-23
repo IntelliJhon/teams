@@ -7,7 +7,7 @@ import { AdminHeader, AdminLogin, Spinner, useAdmin } from "@/components/admin/A
 import { OrderSheet } from "@/components/OrderSheet";
 import { ImageUpload } from "@/components/ImageUpload";
 import { buildOrderSummary } from "@/lib/orderSummary";
-import { AdminOrder, OrderActivity, designVersions, totalPieces } from "@/lib/adminOrders";
+import { AdminOrder, OrderActivity, designVersions, headerOfOrder, totalPieces } from "@/lib/adminOrders";
 import { ORDER_STATUSES, statusStyle } from "@/lib/orderStatus";
 import { downloadIceFashionsPdf } from "@/lib/downloadPdf";
 import { generateIceFashionsPdf } from "@/lib/generateIceFashionsPdf";
@@ -58,16 +58,7 @@ export default function AdminOrderPage() {
 function OrderDetail({ order, reload }: { order: AdminOrder; reload: () => Promise<void> }) {
   const summary = useMemo(
     () =>
-      buildOrderSummary(
-        {
-          customerName: order.customerName,
-          customerPhone: order.customerPhone,
-          customerAddress: order.customerAddress,
-          dispatchDate: order.dispatchDate,
-          remarks: order.remarks,
-        },
-        order.items
-      ),
+      buildOrderSummary(headerOfOrder(order), order.items),
     [order]
   );
   const versions = designVersions(order.activity);
@@ -98,6 +89,18 @@ function OrderDetail({ order, reload }: { order: AdminOrder; reload: () => Promi
               {order.items.length} product{order.items.length === 1 ? "" : "s"} · {totalPieces(order.items)} pcs · Delivery{" "}
               {order.dispatchDate || "—"}
             </p>
+            {(order.branch || order.marketingPerson || order.fromName || order.signName) && (
+              <p className="text-xs text-gray-600 mt-1">
+                {[
+                  order.branch && `Branch: ${order.branch}`,
+                  order.marketingPerson && `Marketing: ${order.marketingPerson}`,
+                  order.fromName && `From: ${order.fromName}`,
+                  order.signName && `Sign: ${order.signName}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {order.customerPhone && (
@@ -113,13 +116,7 @@ function OrderDetail({ order, reload }: { order: AdminOrder; reload: () => Promi
             <button
               onClick={() =>
                 downloadIceFashionsPdf({
-                  customer: {
-                    customerPhone: order.customerPhone,
-                    customerName: order.customerName,
-                    customerAddress: order.customerAddress,
-                    dispatchDate: order.dispatchDate,
-                    remarks: order.remarks,
-                  },
+                  customer: headerOfOrder(order),
                   items: order.items,
                 }).catch(() => toast.error("Could not create the PDF"))
               }
@@ -148,6 +145,7 @@ function OrderDetail({ order, reload }: { order: AdminOrder; reload: () => Promi
       {/* Right: status, design, feedback, history */}
       <div className="space-y-4">
         <StatusCard order={order} reload={reload} />
+        <RemarksCard order={order} reload={reload} />
         <DesignTeamCard order={order} reload={reload} />
         <DesignCard order={order} nextVersion={versions.length + 1} reload={reload} customerLink={customerLink} />
         <FeedbackCard order={order} latestVersion={versions[0]?.version || ""} reload={reload} />
@@ -213,6 +211,49 @@ function StatusCard({ order, reload }: { order: AdminOrder; reload: () => Promis
   );
 }
 
+/** Edit the order's remarks (shown on the order form and PDF) */
+function RemarksCard({ order, reload }: { order: AdminOrder; reload: () => Promise<void> }) {
+  const [remarks, setRemarks] = useState(order.remarks);
+  const [busy, setBusy] = useState(false);
+  const changed = remarks.trim() !== order.remarks.trim();
+  const save = async () => {
+    setBusy(true);
+    try {
+      await postAction({
+        orderId: order.orderId,
+        type: "remarks",
+        remarks: remarks.trim(),
+        note: remarks.trim() ? `Remarks: ${remarks.trim()}` : "Remarks cleared",
+      });
+      toast.success("Remarks saved");
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card title="Remarks">
+      <textarea
+        value={remarks}
+        onChange={(e) => setRemarks(e.target.value)}
+        rows={3}
+        maxLength={2000}
+        placeholder="Special notes / remarks for this order"
+        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-600"
+      />
+      <button
+        onClick={save}
+        disabled={busy || !changed}
+        className="w-full py-2 rounded-xl bg-gray-900 text-white text-sm font-bold disabled:opacity-40 cursor-pointer"
+      >
+        {busy ? "Saving…" : "Save remarks"}
+      </button>
+    </Card>
+  );
+}
+
 /** Makes the order form PDF, stores it on Cloudinary and sends it to the design team on WhatsApp */
 const FROM_KEY = "teams-admin-design-from";
 
@@ -237,13 +278,7 @@ function DesignTeamCard({ order, reload }: { order: AdminOrder; reload: () => Pr
     try {
       setBusy("Creating the PDF…");
       const doc = await generateIceFashionsPdf({
-        customer: {
-          customerPhone: order.customerPhone,
-          customerName: order.customerName,
-          customerAddress: order.customerAddress,
-          dispatchDate: order.dispatchDate,
-          remarks: order.remarks,
-        },
+        customer: headerOfOrder(order),
         items: order.items,
       });
       const blob = doc.output("blob");
@@ -522,6 +557,7 @@ function FeedbackCard({
 const TYPE_LABEL: Record<string, string> = {
   design: "Design",
   design_team: "Sent to design team",
+  remarks: "Remarks edited",
   feedback: "Feedback",
   customer_response: "Customer reply",
   status: "Status",

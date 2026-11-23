@@ -132,20 +132,41 @@ export async function generateIceFashionsPdf({ customer, items, baseUrl }: Gener
     setFont("bold", 8, [255, 255, 255]);
     doc.text("ORDER FORM", RIGHT - 15, 28.3, { align: "center" });
 
-    // From
-    setFont("bold", 9);
-    doc.text("FROM:", LEFT, 37);
-    setFont("normal", 9);
-    const from = [
-      summary.customerName || "—",
-      summary.customerPhone ? `(${summary.customerPhone})` : "",
-      summary.customerAddress ? `- ${summary.customerAddress}` : "",
+    // Customer details, then From (and branch / marketing when picked)
+    let lineY = 37;
+    const labelled = (label: string, text: string, maxLines: number) => {
+      setFont("bold", 9);
+      doc.text(label, LEFT, lineY);
+      setFont("normal", 9);
+      const lines = (doc.splitTextToSize(text || "—", WIDTH - 22) as string[]).slice(0, maxLines);
+      doc.text(lines, LEFT + 22, lineY);
+      lineY += lines.length * 4 + 1.5;
+    };
+    labelled(
+      "CUSTOMER:",
+      [
+        summary.customerName || "—",
+        summary.customerPhone ? `(${summary.customerPhone})` : "",
+        summary.customerAddress ? `- ${summary.customerAddress}` : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      2
+    );
+    labelled("FROM:", summary.fromName, 1);
+    const extra = [
+      summary.branch ? `Branch: ${summary.branch}` : "",
+      summary.marketingPerson ? `Marketing: ${summary.marketingPerson}` : "",
     ]
       .filter(Boolean)
-      .join(" ");
-    const fromLines = doc.splitTextToSize(from, WIDTH - 14) as string[];
-    doc.text(fromLines.slice(0, 2), LEFT + 13, 37);
-    y = 37 + Math.min(fromLines.length, 2) * 4 + 2;
+      .join("   ·   ");
+    if (extra) {
+      setFont("normal", 8, [80, 80, 80]);
+      doc.text(extra, LEFT, lineY);
+      doc.setTextColor(0, 0, 0);
+      lineY += 4.5;
+    }
+    y = lineY + 0.5;
   };
 
   const drawContinuedHeader = () => {
@@ -437,7 +458,7 @@ export async function generateIceFashionsPdf({ customer, items, baseUrl }: Gener
   setFont("bold", 9.5);
   doc.text("NAME/SIGN", 115, y);
   setFont("normal", 9.5);
-  doc.text(summary.customerName || "—", 140, y);
+  doc.text(summary.signName || "", 140, y);
   doc.line(138, y + 1, RIGHT, y + 1);
   y += 8;
 

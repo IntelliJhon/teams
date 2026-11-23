@@ -9,6 +9,10 @@ interface OrderState {
   customerAddress: string;
   dispatchDate: string;
   remarks: string;
+  branch: string;
+  marketingPerson: string;
+  fromName: string;
+  signName: string;
 
   // ── Cart ────────────────────────────────────
   items: ProductLineItem[];
@@ -41,6 +45,10 @@ const initialState = {
   customerAddress: "",
   dispatchDate: "",
   remarks: "",
+  branch: "",
+  marketingPerson: "",
+  fromName: "",
+  signName: "",
   items: [],
   draft: null,
   editOrderId: null,
@@ -66,6 +74,11 @@ export const useOrderStore = create<OrderState>()(
           dispatchDate: header.dispatchDate ?? state.dispatchDate,
           remarks:
             header.remarks !== undefined ? header.remarks : state.remarks,
+          branch: header.branch !== undefined ? header.branch : state.branch,
+          marketingPerson:
+            header.marketingPerson !== undefined ? header.marketingPerson : state.marketingPerson,
+          fromName: header.fromName !== undefined ? header.fromName : state.fromName,
+          signName: header.signName !== undefined ? header.signName : state.signName,
         })),
 
       setDraft: (draft) => set({ draft }),
@@ -93,6 +106,10 @@ export const useOrderStore = create<OrderState>()(
           customerAddress: header.customerAddress ?? "",
           dispatchDate: header.dispatchDate,
           remarks: header.remarks ?? "",
+          branch: header.branch ?? "",
+          marketingPerson: header.marketingPerson ?? "",
+          fromName: header.fromName ?? "",
+          signName: header.signName ?? "",
           items,
           editOrderId: orderId,
           editToken: token,
@@ -116,3 +133,18 @@ export const useOrderStore = create<OrderState>()(
     }
   )
 );
+
+/** The order's header fields from the store, for submitting and for the PDF */
+export function headerOf(s: OrderHeader): OrderHeader {
+  return {
+    customerPhone: s.customerPhone,
+    customerName: s.customerName,
+    customerAddress: s.customerAddress,
+    dispatchDate: s.dispatchDate,
+    remarks: s.remarks,
+    branch: s.branch,
+    marketingPerson: s.marketingPerson,
+    fromName: s.fromName,
+    signName: s.signName,
+  };
+}

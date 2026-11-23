@@ -42,6 +42,10 @@ export interface OrderHeader {
   customerAddress?: string;
   dispatchDate: string; // ISO date string
   remarks?: string;
+  branch?: string; // branch that took the order (admin-managed list)
+  marketingPerson?: string; // marketing team member (admin-managed list)
+  fromName?: string; // printed as FROM on the order form
+  signName?: string; // printed as NAME/SIGN on the order form
 }
 
 export interface ProductCatalogItem {

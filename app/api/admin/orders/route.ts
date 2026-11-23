@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { n8nAdmin, readSession } from "@/lib/adminAuth";
-import { buildAdminOrders } from "@/lib/adminOrders";
+import { buildAdminOrders, buildOptions } from "@/lib/adminOrders";
 
 /** All orders with their items and activity, for the admin panel */
 export async function GET(req: NextRequest) {
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     if (!resp.ok || !data) {
       return NextResponse.json({ error: `Could not load orders (${resp.status})` }, { status: 502 });
     }
-    return NextResponse.json({ orders: buildAdminOrders(data) });
+    return NextResponse.json({ orders: buildAdminOrders(data), options: buildOptions(data.options) });
   } catch (err) {
     console.error("[Admin] orders fetch failed:", err);
     return NextResponse.json({ error: "Could not reach the order server" }, { status: 502 });

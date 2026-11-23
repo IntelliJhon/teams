@@ -6,31 +6,53 @@ import { AdminHeader, AdminLogin, Spinner, useAdmin } from "@/components/admin/A
 import { ORDER_STATUSES, statusStyle } from "@/lib/orderStatus";
 import { totalPieces } from "@/lib/adminOrders";
 
+const NO_BRANCH = "__none__";
+
 const fmtDate = (iso: string) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 export default function AdminOrdersPage() {
-  const { me, setMe, orders, error, loading, reload, logout } = useAdmin();
+  const { me, setMe, orders, options, error, loading, reload, logout } = useAdmin();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [branch, setBranch] = useState(""); // "" = all, NO_BRANCH = orders without one
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (orders ?? []).filter(
       (o) =>
         (!status || o.status === status) &&
+        (!branch || (branch === NO_BRANCH ? !o.branch : o.branch === branch)) &&
         (!q ||
           o.orderId.toLowerCase().includes(q) ||
           o.customerName.toLowerCase().includes(q) ||
           o.customerPhone.includes(q))
     );
-  }, [orders, query, status]);
+  }, [orders, query, status, branch]);
 
+  // Status counts within the chosen branch
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const o of orders ?? []) c[o.status] = (c[o.status] || 0) + 1;
+    for (const o of orders ?? []) {
+      if (branch && (branch === NO_BRANCH ? o.branch : o.branch !== branch)) continue;
+      c[o.status] = (c[o.status] || 0) + 1;
+    }
     return c;
-  }, [orders]);
+  }, [orders, branch]);
+
+  // Branches from Settings, plus any older ones still on orders, plus "No branch"
+  const branchChips = useMemo(() => {
+    const names = new Set(options.filter((x) => x.type === "branch" && x.active).map((x) => x.name));
+    for (const o of orders ?? []) if (o.branch) names.add(o.branch);
+    const chips = [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
+      key: name,
+      label: name,
+      count: (orders ?? []).filter((o) => o.branch === name).length,
+    }));
+    const none = (orders ?? []).filter((o) => !o.branch).length;
+    if (none) chips.push({ key: NO_BRANCH, label: "No branch", count: none });
+    return chips;
+  }, [options, orders]);
 
   if (me === undefined) return <Spinner label="Loading…" />;
   if (me === null) return <AdminLogin onLoggedIn={(m) => { setMe(m); reload(); }} />;
@@ -53,35 +75,60 @@ export default function AdminOrdersPage() {
           </button>
         </div>
 
-        {/* Status filter chips */}
+        {/* Branch chips */}
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => setStatus("")}
+            onClick={() => setBranch("")}
             className={`px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer ${
-              !status ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-300"
+              !branch ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-700 border-gray-300"
             }`}
           >
             All {orders ? `(${orders.length})` : ""}
           </button>
-          {ORDER_STATUSES.map((s) => (
+          {branchChips.map((c) => (
             <button
-              key={s}
-              onClick={() => setStatus(s === status ? "" : s)}
+              key={c.key}
+              onClick={() => setBranch(c.key === branch ? "" : c.key)}
               className={`px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer ${
-                status === s ? "ring-2 ring-offset-1 ring-gray-900 " : ""
-              }${statusStyle(s)}`}
+                branch === c.key
+                  ? "bg-emerald-700 text-white border-emerald-700"
+                  : c.key === NO_BRANCH
+                    ? "bg-white text-gray-500 border-dashed border-gray-300"
+                    : "bg-white text-emerald-800 border-emerald-300"
+              }`}
             >
-              {s} {counts[s] ? `(${counts[s]})` : ""}
+              {c.label} ({c.count})
             </button>
           ))}
+          {branchChips.length === 0 && (
+            <Link href="/admin/settings" className="px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:underline">
+              + Add branches in Settings
+            </Link>
+          )}
         </div>
 
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by order ID, customer name or phone"
-          className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-600"
-        />
+        {/* Search + status */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by order ID, customer name or phone"
+            className="flex-1 bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-600"
+          />
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="sm:w-56 bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-600 cursor-pointer"
+          >
+            <option value="">All statuses</option>
+            {ORDER_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+                {counts[s] ? ` (${counts[s]})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
         {!orders && !error && <Spinner label="Loading orders…" />}
@@ -109,7 +156,10 @@ export default function AdminOrdersPage() {
                 </span>
                 <span className="min-w-0 text-right md:text-left">
                   <span className="block font-semibold text-gray-800 truncate">{o.customerName || "—"}</span>
-                  <span className="block text-xs text-gray-500">{o.customerPhone}</span>
+                  <span className="block text-xs text-gray-500">
+                    {o.customerPhone}
+                    {o.branch ? ` · ${o.branch}` : ""}
+                  </span>
                 </span>
                 <span className="text-gray-700 truncate">
                   {o.items.map((i) => i.productType).join(", ") || "—"}

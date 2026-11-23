@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useOrderStore } from "@/store/order-store";
+import { headerOf, useOrderStore } from "@/store/order-store";
 import { buildOrderSummary } from "@/lib/orderSummary";
 import { OrderSheet } from "@/components/OrderSheet";
 import { downloadIceFashionsPdf } from "@/lib/downloadPdf";
@@ -23,10 +23,7 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
     items,
   } = useOrderStore();
 
-  const summary = buildOrderSummary(
-    { customerPhone, customerName, customerAddress, dispatchDate, remarks },
-    items
-  );
+  const summary = buildOrderSummary(headerOf(useOrderStore.getState()), items);
 
   // Order number is only for the printed form; keep it stable while the form is open
   const [orderNumber] = useState(
@@ -37,13 +34,7 @@ export function IceFashionsOrderForm({ onClose }: IceFashionsOrderFormProps) {
     setDownloading(true);
     try {
       await downloadIceFashionsPdf({
-        customer: {
-          customerPhone,
-          customerName,
-          customerAddress,
-          dispatchDate,
-          remarks,
-        },
+        customer: headerOf(useOrderStore.getState()),
         items,
       });
     } catch (err) {
