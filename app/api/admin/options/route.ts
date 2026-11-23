@@ -9,8 +9,18 @@ export async function POST(req: NextRequest) {
   if (!readSession(req)) return NextResponse.json({ error: "Not logged in" }, { status: 401 });
 
   const b = await req.json().catch(() => ({}));
-  const type = b?.type === "marketing" ? "marketing" : b?.type === "branch" ? "branch" : "";
-  const name = String(b?.name || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  const type = ["branch", "marketing", "notify"].includes(b?.type) ? String(b.type) : "";
+  let name = String(b?.name || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (type === "notify") {
+    // WhatsApp number for new-order alerts: stored with the 91 country code
+    let digits = name.replace(/\D/g, "");
+    if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+    if (digits.length === 10) digits = `91${digits}`;
+    if (!/^91[6-9]\d{9}$/.test(digits)) {
+      return NextResponse.json({ error: "Enter a 10-digit mobile number" }, { status: 400 });
+    }
+    name = digits;
+  }
   const id = String(b?.id || "");
   if (!type) return NextResponse.json({ error: "Bad list" }, { status: 400 });
   if (!name) return NextResponse.json({ error: "Type a name" }, { status: 400 });

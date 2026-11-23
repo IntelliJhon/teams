@@ -26,7 +26,7 @@ export default function AdminSettingsPage() {
         {!orders && !error ? (
           <Spinner label="Loading…" />
         ) : (
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-4 items-start">
             <OptionList title="Branches" type="branch" options={options} reload={reload} placeholder="e.g. Edappal" />
             <OptionList
               title="Marketing team"
@@ -34,6 +34,15 @@ export default function AdminSettingsPage() {
               options={options}
               reload={reload}
               placeholder="e.g. Rahul"
+            />
+            <OptionList
+              title="New order WhatsApp alerts"
+              hint="These numbers get a WhatsApp message for every new order. Up to 5."
+              type="notify"
+              options={options}
+              reload={reload}
+              placeholder="10-digit mobile number"
+              max={5}
             />
           </div>
         )}
@@ -58,12 +67,16 @@ function OptionList({
   options,
   reload,
   placeholder,
+  hint,
+  max,
 }: {
   title: string;
   type: PortalOption["type"];
   options: PortalOption[];
   reload: () => Promise<void>;
   placeholder: string;
+  hint?: string;
+  max?: number;
 }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState("");
@@ -87,7 +100,9 @@ function OptionList({
   const add = () => {
     const n = name.replace(/\s+/g, " ").trim();
     if (!n) return;
-    const existing = list.find((o) => o.name.toLowerCase() === n.toLowerCase());
+    if (max && active.length >= max) return toast.error(`Up to ${max} only. Remove one first.`);
+    const key = (v: string) => (type === "notify" ? v.replace(/\D/g, "").slice(-10) : v.toLowerCase());
+    const existing = list.find((o) => key(o.name) === key(n));
     if (existing?.active) return toast.error(`"${existing.name}" is already in the list`);
     run(
       "add",
@@ -105,6 +120,7 @@ function OptionList({
       <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
         {title} <span className="text-gray-400 font-semibold">({active.length})</span>
       </h2>
+      {hint && <p className="text-xs text-gray-500 -mt-1">{hint}</p>}
       <div className="flex gap-2">
         <input
           value={name}
@@ -116,7 +132,7 @@ function OptionList({
         />
         <button
           onClick={add}
-          disabled={!name.trim() || busy === "add"}
+          disabled={!name.trim() || busy === "add" || Boolean(max && active.length >= max)}
           className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold disabled:opacity-50 cursor-pointer"
         >
           {busy === "add" ? "Adding…" : "Add"}
@@ -127,7 +143,7 @@ function OptionList({
       <ul className="divide-y divide-gray-100">
         {active.map((o) => (
           <li key={o.id} className="flex items-center justify-between py-2 text-sm">
-            <span className="font-semibold text-gray-800">{o.name}</span>
+            <span className="font-semibold text-gray-800">{showName(o)}</span>
             <button
               onClick={() => {
                 if (confirm(`Remove "${o.name}" from the order form? Orders that already have it keep it.`)) {
@@ -149,7 +165,7 @@ function OptionList({
           <ul className="mt-2 divide-y divide-gray-100">
             {removed.map((o) => (
               <li key={o.id} className="flex items-center justify-between py-1.5">
-                <span className="text-gray-500 line-through">{o.name}</span>
+                <span className="text-gray-500 line-through">{showName(o)}</span>
                 <button
                   onClick={() => run(o.id, () => saveOption({ id: o.id, type, name: o.name, active: true }), `${o.name} restored`)}
                   disabled={busy === o.id}
@@ -164,4 +180,9 @@ function OptionList({
       )}
     </section>
   );
+}
+
+/** Alert numbers are stored as 91XXXXXXXXXX; show them as +91 XXXXX XXXXX */
+function showName(o: PortalOption) {
+  return o.type === "notify" && /^91\d{10}$/.test(o.name) ? `+91 ${o.name.slice(2, 7)} ${o.name.slice(7)}` : o.name;
 }

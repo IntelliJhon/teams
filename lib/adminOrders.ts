@@ -157,7 +157,7 @@ export function buildAdminOrders(data: { orders?: Row[]; items?: Row[]; activity
 /** One entry of the admin-managed lists (Portal_Options tab) */
 export interface PortalOption {
   id: string;
-  type: "branch" | "marketing";
+  type: "branch" | "marketing" | "notify"; // notify = WhatsApp number for new-order alerts
   name: string;
   active: boolean;
 }
@@ -167,7 +167,7 @@ export function buildOptions(rows: Row[] | undefined): PortalOption[] {
     .filter((r) => str(r.option_id) && str(r.name))
     .map((r) => ({
       id: str(r.option_id),
-      type: (str(r.type) === "marketing" ? "marketing" : "branch") as PortalOption["type"],
+      type: (["marketing", "notify"].includes(str(r.type)) ? str(r.type) : "branch") as PortalOption["type"],
       name: str(r.name),
       active: str(r.active).toLowerCase() !== "no",
     }))
