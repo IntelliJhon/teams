@@ -479,6 +479,14 @@ const baseProductSchemas: Record<string, FieldDef[]> = {
       required: true,
     },
     {
+      id: "pocket",
+      label: "POCKET",
+      type: "select",
+      options: POCKET_OPTIONS,
+      display: "chips",
+      required: true,
+    },
+    {
       id: "collarType",
       label: "Select Collar Type",
       type: "select",

@@ -237,7 +237,7 @@ export function buildOrderSummary(customer: Partial<OrderHeader>, items: Product
   });
 
   return {
-    date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    date: fmtDate(new Date()),
     customerName: customer.customerName || "",
     customerPhone: customer.customerPhone || "",
     customerAddress: customer.customerAddress || "",
@@ -245,11 +245,23 @@ export function buildOrderSummary(customer: Partial<OrderHeader>, items: Product
     signName: customer.signName || "",
     branch: customer.branch || "",
     marketingPerson: customer.marketingPerson || "",
-    deliveryDate: customer.dispatchDate || "",
+    deliveryDate: customer.dispatchDate ? fmtDate(customer.dispatchDate) : "",
     remarks: customer.remarks || "",
     products,
     grandTotal: products.reduce((sum, p) => sum + p.totalQty, 0),
   };
+}
+
+/** "2026-11-23" or a Date → "23 Nov 2026" (anything else is shown as it is) */
+export function fmtDate(value: string | Date): string {
+  const d =
+    value instanceof Date
+      ? value
+      : /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? new Date(`${value}T00:00:00`)
+        : null;
+  if (!d || isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 /** Name list split into per-size groups for display */
