@@ -557,6 +557,7 @@ function FeedbackCard({
 const TYPE_LABEL: Record<string, string> = {
   design: "Design",
   design_team: "Sent to design team",
+  customer_pdf: "Order form sent to customer",
   remarks: "Remarks edited",
   feedback: "Feedback",
   customer_response: "Customer reply",

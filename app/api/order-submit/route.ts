@@ -1,4 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { sendOrderPdfToCustomer } from "@/lib/customerPdf";
+
+// Leaves time to make and send the customer PDF after the response
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,6 +61,13 @@ export async function POST(req: NextRequest) {
     }
 
     const raw = Array.isArray(data) ? data[0] : data;
+
+    // After replying: send the order form PDF to the customer on WhatsApp
+    const origin = new URL(req.url).origin;
+    after(() =>
+      sendOrderPdfToCustomer(body, origin).catch((err) => console.error("[Customer PDF] failed:", err))
+    );
+
     return NextResponse.json({
       orderId: raw?.orderId || raw?.id || body.orderId,
       editToken: raw?.editToken || raw?.token || "",

@@ -17,8 +17,6 @@ export default function OrderNewContent() {
     customerName,
     customerAddress,
     dispatchDate,
-    branch: savedBranch,
-    marketingPerson: savedMarketing,
     fromName: savedFrom,
     signName: savedSign,
   } = useOrderStore();
@@ -27,20 +25,9 @@ export default function OrderNewContent() {
   const [address, setAddress] = useState(customerAddress);
   const [phone, setPhone] = useState(customerPhone || phoneParam);
   const [date, setDate] = useState(dispatchDate);
-  const [branch, setBranch] = useState(savedBranch);
-  const [marketing, setMarketing] = useState(savedMarketing);
   const [fromName, setFromName] = useState(savedFrom);
   const [signName, setSignName] = useState(savedSign);
-  // Dropdown lists, managed in the admin panel (Settings)
-  const [options, setOptions] = useState<{ branches: string[]; marketing: string[] }>({ branches: [], marketing: [] });
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    fetch("/api/options", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setOptions({ branches: d?.branches ?? [], marketing: d?.marketing ?? [] }))
-      .catch(() => {});
-  }, []);
 
   // Seed the phone from URL if provided
   useEffect(() => {
@@ -115,8 +102,6 @@ export default function OrderNewContent() {
       customerPhone: cleanPhone,
       // Delivery date is chosen under Sizes & Quantities; keep one already picked
       dispatchDate: date || "",
-      branch,
-      marketingPerson: marketing,
       fromName: fromName.trim(),
       signName: signName.trim(),
     });
@@ -136,8 +121,6 @@ export default function OrderNewContent() {
               setName("");
               setAddress("");
               setPhone("");
-              setBranch("");
-              setMarketing("");
               setFromName("");
               setSignName("");
             }
@@ -150,24 +133,6 @@ export default function OrderNewContent() {
           </h2>
 
           <div className="space-y-6">
-            {/* Branch + marketing person (lists come from the admin panel) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <PickList
-                label="Branch"
-                value={branch}
-                onChange={setBranch}
-                options={options.branches}
-                placeholder="Select branch"
-              />
-              <PickList
-                label="Marketing"
-                value={marketing}
-                onChange={setMarketing}
-                options={options.marketing}
-                placeholder="Select marketing person"
-              />
-            </div>
-
             {/* Printed on the order form as FROM and NAME/SIGN */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TextBox label="From" value={fromName} onChange={setFromName} placeholder="From" />
@@ -264,42 +229,6 @@ export default function OrderNewContent() {
         >
           Continue
         </button>
-      </div>
-    </div>
-  );
-}
-
-function PickList({
-  label,
-  value,
-  onChange,
-  options,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  placeholder: string;
-}) {
-  // Keep a value that was removed from the list since it was picked
-  const all = value && !options.includes(value) ? [value, ...options] : options;
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-gray-600 mb-1 px-1">{label}</label>
-      <div className="bg-white border border-gray-500/80 focus-within:border-emerald-600 rounded-xl px-3 py-2.5">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full text-base text-gray-900 focus:outline-none bg-transparent cursor-pointer"
-        >
-          <option value="">{all.length ? placeholder : "None added yet"}</option>
-          {all.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
       </div>
     </div>
   );
